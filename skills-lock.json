@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "async-python-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/python-development/skills/async-python-patterns/SKILL.md",
+      "computedHash": "35bc80697c3ba879e32cee7e2728ed2db0d16499875bb718736fd1160fddc2d6"
+    },
+    "auth-implementation-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/developer-essentials/skills/auth-implementation-patterns/SKILL.md",
+      "computedHash": "06f33be59282b5cb58cba503f15d19dcfebbb7e7904224c2dee320c0ec823ead"
+    },
+    "fastapi": {
+      "source": "fastapi/fastapi",
+      "sourceType": "github",
+      "skillPath": "fastapi/.agents/skills/fastapi/SKILL.md",
+      "computedHash": "2f0ff30756b435168276e1a7eb78c07856118575ea174535de7ed86dc88c9be4"
+    },
+    "jwt-security-review": {
+      "source": "securityskills/skills",
+      "sourceType": "github",
+      "skillPath": "web-appsec/auth/jwt-security-review/SKILL.md",
+      "computedHash": "4cbe10cc8adefdf5a3335eb7f6d0a48d53dfa6d0956d5c2ff7e1c345daaae247"
+    },
+    "postgresql-table-design": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/database-design/skills/postgresql-table-design/SKILL.md",
+      "computedHash": "c87d5cac33fbddc757fbb4b38a0098cff7dcf79201d40ddff2af76ec2724c5a1"
+    },
+    "sqlalchemy-alembic-expert-best-practices-code-review": {
+      "source": "wispbit-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/sqlalchemy-alembic-expert-best-practices-code-review/SKILL.md",
+      "computedHash": "995e671e51c95c73542b48eb7372a752ba1b5f6c0d2277e07ab0d53543dd507c"
+    }
+  }
+}
