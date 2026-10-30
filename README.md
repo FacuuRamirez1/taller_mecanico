@@ -3,6 +3,8 @@
 Trabajo Práctico para **Programación III (TUP)**.
 Backend asincrónico para la administración operativa, gestión de stock, órdenes de trabajo y control de acceso (RBAC) de un taller mecánico.
 
+Integrantes: Facundo Deseff, Santino Godoy, Facundo Ramírez y Matías vargas
+
 ---
 
 ## Stack Tecnológico
