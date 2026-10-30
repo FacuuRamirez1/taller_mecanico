@@ -1,0 +1,71 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-19: Baja lógica de vehículo sin órdenes abiertas (Focus AB123CD de Laura, id 2)
+# Esperado: 204 No Content
+DELETE {{baseUrl}}/vehiculos/2
+
+### C-19: Alta de la misma patente para otro cliente (Jorge, id 2)
+# El índice único parcial 'ux_vehiculo_patente_vigente' sólo restringe vigentes (borrado_en IS NULL).
+# Esperado: 201 Created
+# {
+#   "id": 4,
+#   "cliente_id": 2,
+#   "patente": "AB123CD",
+#   "marca": "Ford",
+#   "modelo": "Focus",
+#   "anio": 2018
+# }
+POST {{baseUrl}}/clientes/2/vehiculos
+Content-Type: application/json
+
+{
+  "patente": "AB123CD",
+  "marca": "Ford",
+  "modelo": "Focus",
+  "anio": 2018
+}
+
+### C-19: Intento de alta con la misma patente mientras ya está vigente
+# Esperado: 409 Conflict
+# {
+#   "detail": "Ya existe un vehículo vigente con esa patente"
+# }
+POST {{baseUrl}}/clientes/1/vehiculos
+Content-Type: application/json
+
+{
+  "patente": "AB123CD",
+  "marca": "Ford",
+  "modelo": "Focus",
+  "anio": 2018
+}
+
+### C-19: Intento de baja lógica de vehículo con órdenes abiertas (Corolla AC456EF, id 1 tiene Orden 1 PENDIENTE)
+# Esperado: 409 Conflict
+# {
+#   "detail": "No se puede dar de baja un vehículo con órdenes abiertas"
+# }
+DELETE {{baseUrl}}/vehiculos/1
+
+### C-19: Detalle de cliente ya no incluye vehículos dados de baja
+# Esperado: 200 OK con sólo el Corolla (id 1)
+# {
+#   "id": 1,
+#   "usuario_id": 6,
+#   "nombre": "Laura Gómez",
+#   "documento": "30111222",
+#   "telefono": "11-5555-0101",
+#   "vehiculos": [
+#     {
+#       "id": 1,
+#       "cliente_id": 1,
+#       "patente": "AC456EF",
+#       "marca": "Toyota",
+#       "modelo": "Corolla",
+#       "anio": 2020
+#     }
+#   ]
+# }
+GET {{baseUrl}}/clientes/1
+

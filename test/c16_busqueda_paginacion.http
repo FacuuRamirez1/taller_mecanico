@@ -1,0 +1,167 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-16: Búsqueda con intento de inyección SQL (parámetros ligados)
+# Esperado: 200 OK con 0 resultados (busca literalmente la cadena)
+# {
+#   "items": [],
+#   "total": 0,
+#   "page": 1,
+#   "size": 20,
+#   "pages": 0
+# }
+GET {{baseUrl}}/repuestos?q=' OR '1'='1
+
+### C-16: Búsqueda filtrada paginada
+# Esperado: 200 OK con total 1 y pages 1
+# {
+#   "items": [
+#     {
+#       "id": 2,
+#       "codigo": "FRE-010",
+#       "descripcion": "Pastillas de freno",
+#       "precio": 45000.0,
+#       "stock": 4
+#     }
+#   ],
+#   "total": 1,
+#   "page": 1,
+#   "size": 1,
+#   "pages": 1
+# }
+GET {{baseUrl}}/repuestos?q=freno&size=1
+
+### C-16: Página fuera de rango
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": "La página 2 no existe: hay 1"
+# }
+GET {{baseUrl}}/repuestos?q=freno&size=1&page=2
+
+### C-16: Tamaño de página superior al máximo permitido (100)
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "less_than_equal",
+#       "loc": ["query", "size"],
+#       "msg": "Input should be less than or equal to 100"
+#     }
+#   ]
+# }
+GET {{baseUrl}}/repuestos?size=500
+
+### C-16: PATCH parcial de sólo descripción (precio intacto)
+# Esperado: 200 OK con descripción modificada y precio sin cambios
+# {
+#   "id": 1,
+#   "codigo": "FIL-001",
+#   "descripcion": "Filtro de aceite premium",
+#   "precio": 8500.0,
+#   "stock": 10
+# }
+PATCH {{baseUrl}}/repuestos/1
+Content-Type: application/json
+
+{
+  "descripcion": "Filtro de aceite premium"
+}
+
+### C-16: PATCH intentando modificar stock directamente
+# El schema rechaza campos no declarados (extra="forbid").
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "extra_forbidden",
+#       "loc": ["body", "stock"],
+#       "msg": "Extra inputs are not permitted"
+#     }
+#   ]
+# }
+PATCH {{baseUrl}}/repuestos/1
+Content-Type: application/json
+
+{
+  "stock": 999
+}
+
+### C-16: Aumento de precio (válido)
+# Esperado: 200 OK
+# {
+#   "id": 1,
+#   "codigo": "FIL-001",
+#   "descripcion": "Filtro de aceite premium",
+#   "precio": 9500.0,
+#   "stock": 10
+# }
+PATCH {{baseUrl}}/repuestos/1
+Content-Type: application/json
+
+{
+  "precio": 9500.00
+}
+
+### C-16: Historial de precios tras aumento
+# Esperado: 200 OK con la nueva línea registrada
+# [
+#   {
+#     "id": 2,
+#     "repuesto_id": 1,
+#     "usuario_id": 1,
+#     "precio_anterior": 8500.0,
+#     "precio_nuevo": 9500.0,
+#     "cuando": "..."
+#   },
+#   ...
+# ]
+GET {{baseUrl}}/repuestos/1/precios
+
+### C-16: Disminución de precio (rechazada)
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": "El precio no puede ser menor que el actual"
+# }
+PATCH {{baseUrl}}/repuestos/1
+Content-Type: application/json
+
+{
+  "precio": 7000.00
+}
+
+### C-16: Reposición de stock
+# Esperado: 200 OK con stock incrementado (10 + 5 = 15)
+# {
+#   "id": 1,
+#   "codigo": "FIL-001",
+#   "descripcion": "Filtro de aceite premium",
+#   "precio": 9500.0,
+#   "stock": 15
+# }
+POST {{baseUrl}}/repuestos/1/reponer
+Content-Type: application/json
+
+{
+  "cantidad": 5
+}
+
+### C-16: Movimientos de stock tras reposición
+# Esperado: 200 OK con movimiento "Reposición"
+# [
+#   {
+#     "id": 5,
+#     "repuesto_id": 1,
+#     "orden_id": null,
+#     "usuario_id": 1,
+#     "cantidad": 5,
+#     "motivo": "Reposición",
+#     "cuando": "..."
+#   },
+#   ...
+# ]
+GET {{baseUrl}}/repuestos/1/movimientos
+
+### C-16: Baja lógica de repuesto
+# Esperado: 204 No Content
+DELETE {{baseUrl}}/repuestos/4
+

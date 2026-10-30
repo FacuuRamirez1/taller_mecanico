@@ -1,0 +1,43 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-01: Parámetro de ruta no entero en repuestos
+# FastAPI valida el tipo del parámetro antes de invocar el handler.
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "int_parsing",
+#       "loc": ["path", "repuesto_id"],
+#       "msg": "Input should be a valid integer, unable to parse string as an integer"
+#     }
+#   ]
+# }
+GET {{baseUrl}}/repuestos/abc
+
+### C-01: Parámetro de ruta no entero en clientes
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "int_parsing",
+#       "loc": ["path", "cliente_id"],
+#       "msg": "Input should be a valid integer, unable to parse string as an integer"
+#     }
+#   ]
+# }
+GET {{baseUrl}}/clientes/abc
+
+### C-01: Parámetro de ruta no entero en vehiculos
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "int_parsing",
+#       "loc": ["path", "vehiculo_id"],
+#       "msg": "Input should be a valid integer, unable to parse string as an integer"
+#     }
+#   ]
+# }
+DELETE {{baseUrl}}/vehiculos/abc
+

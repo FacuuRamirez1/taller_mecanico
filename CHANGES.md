@@ -259,7 +259,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-03] `ej3-contratos-crud`
 
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado (2026-10-30)
 - **Ejercicio**: **Ej. 3** · **Peso**: 10 % · **Esfuerzo**: 9 h-persona
 - **Dueño**: C (repuestos, clientes, vehículos) + D (`seed.py`, schemas de órdenes) + B (schemas de usuarios) + A (paginación y errores)
 - **Scope**:
