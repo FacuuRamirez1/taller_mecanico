@@ -165,7 +165,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-00] `setup-entorno-local`
 
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado (archivado 2026-10-29)
 - **Ejercicio**: ninguno (transversal, **condición de corrección**) · **Peso**: 0 % · **Esfuerzo**: 5 h-persona
 - **Dueño**: A (con B, C y D en paralelo sobre su propia máquina)
 - **Scope**:

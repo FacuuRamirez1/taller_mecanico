@@ -1,0 +1,10 @@
+fastapi[standard]==0.111.1
+SQLModel==0.0.24
+SQLAlchemy==2.0.55
+asyncpg==0.30.0
+alembic==1.13.3
+pydantic-settings==2.0.3
+bcrypt==4.0.1
+PyJWT==2.8.0
+uvicorn[standard]==0.30.6
+pydantic==2.8.2
