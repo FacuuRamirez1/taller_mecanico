@@ -1,4 +1,4 @@
-fastapi[standard]==0.111.1
+fastapi==0.111.1
 SQLModel==0.0.24
 SQLAlchemy==2.0.55
 asyncpg==0.30.0

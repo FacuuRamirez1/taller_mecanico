@@ -1,0 +1,13 @@
+@host = http://localhost:8000
+
+### C-01 - Liveness: el proceso responde (no toca la base)
+# Esperado: 200 OK
+# {"status":"ok"}
+GET {{host}}/health/live
+
+### C-01 - Readiness: la base responde
+# Esperado con PostgreSQL arriba: 200 OK
+# {"status":"ok"}
+# Esperado con PostgreSQL detenido: 503 Service Unavailable
+# {"detail":"La base de datos no responde"}
+GET {{host}}/health/ready

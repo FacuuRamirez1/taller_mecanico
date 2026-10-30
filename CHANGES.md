@@ -198,7 +198,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-01] `ej1-config-ciclo-vida`
 
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado (archivado 2026-10-29)
 - **Ejercicio**: **Ej. 1** · **Peso**: 8 % · **Esfuerzo**: 6 h-persona
 - **Dueño**: A (B aporta `security.py` mínimo; C el router de health)
 - **Scope**:

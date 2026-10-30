@@ -1,13 +1,8 @@
 """Entorno de Alembic — plantilla ASINCRÓNICA.
 
-TODO C-01: `app/core/config.py` todavía NO existe. Este módulo importa
-`Settings` desde allí a propósito: cualquier comando de Alembic que cargue
-este archivo falla fuerte con `ModuleNotFoundError: No module named
-'app.core.config'` hasta que C-01 cree ese módulo. Es el comportamiento
-esperado y documentado (design.md §D1, env.example, tasks.md 4.2).
-
-No agregar fallbacks, URLs por defecto ni lecturas directas de os.environ:
-la URL sale siempre de Settings.DATABASE_URL, igual que en la aplicación.
+La URL sale siempre de `Settings.DATABASE_URL`, igual que en la aplicación:
+sin fallbacks, URLs por defecto ni lecturas directas de os.environ. Si faltan
+secretos, Alembic falla con el mismo `ValidationError` que uvicorn.
 """
 
 import asyncio
@@ -19,7 +14,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
-from app.core.config import Settings  # TODO C-01: crear app/core/config.py
+from app.core.config import Settings
 
 # TODO C-02: importar los modelos de cada módulo para que `SQLModel.metadata`
 # los conozca (p. ej. `from app.modules.usuarios import models  # noqa: F401`).
@@ -31,7 +26,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 settings = Settings()
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# configparser interpola `%`: se duplica para conservar la URL escapada (%40, etc.)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 target_metadata = SQLModel.metadata
 
