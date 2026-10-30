@@ -225,7 +225,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-02] `ej2-modelos-migraciones`
 
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado (archivado 2026-10-30)
 - **Ejercicio**: **Ej. 2** · **Peso**: 14 % · **Esfuerzo**: 12 h-persona
 - **Dueño**: A (migraciones) + B/C/D (modelos por módulo)
 - **Scope**:
@@ -269,7 +269,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
   - `app/modules/clientes/`: `POST /clientes` (201/409/422), `GET /clientes/{id}` con sus vehículos (200/404), `POST /clientes/{id}/vehiculos` (201/404/409/422), `DELETE /vehiculos/{id}` (204/404/409), `GET /mis-vehiculos` (200, se protege en C-05).
   - Errores transversales: `IntegrityError` → **409** con mensaje propio (se inspecciona el nombre de la constraint, **nunca** un `SELECT` previo), 404 para el recurso de la ruta, 422 para contrato, ningún 500 con entrada inválida, `{id}` no entero → 422.
   - **Deuda declarada**: los services de C-03 usan `AsyncSession` directa; C-06 los migra a `Router → Service → UoW → Repository` **sin cambiar los contratos**. Queda anotado en cada `service.py` con `# TODO C-06`.
-  - `seed.py` **completo de una sola vez** (dueño D): `DELETE` en orden inverso de FK (no `TRUNCATE`, que no dispara el trigger de fila), catálogo (4 estados) **primero**, 7 usuarios, 2 clientes (Laura con usuario y 2 vehículos; Jorge sin usuario y 1 vehículo), 4 repuestos con stock 10/4/2/20 como movimientos `"Stock inicial"`, órdenes 1 (`PENDIENTE`) y 2 (`EN_REPARACION`, 4 bujías con stock 2), historial de precio 8000 → 8500, evento `SISTEMA`.
+  - `seed.py` **completo de una sola vez** (dueño D): `TRUNCATE ... RESTART IDENTITY CASCADE` (corregido en C-02, OQ-1: `DELETE` lo rechaza el trigger de sólo agregado; `TRUNCATE` no activa triggers de fila), catálogo (4 estados) **primero**, 7 usuarios, 2 clientes (Laura con usuario y 2 vehículos; Jorge sin usuario y 1 vehículo), 4 repuestos con stock 10/4/2/20 como movimientos `"Stock inicial"`, órdenes 1 (`PENDIENTE`) y 2 (`EN_REPARACION`, 4 bujías con stock 2), historial de precio 8000 → 8500, evento `SISTEMA`.
 - **Dependencias**: `C-02`
 - **Governance**: **ALTO** — los contratos los consumen C-04…C-08; un cambio acá rompe cuatro changes.
 - **Cubre**: `C-01` (id no entero → 422 sin ejecutar el handler) · `C-16` (búsqueda con `' OR '1'='1`, paginación filtrada, PATCH parcial, PATCH del stock) · `C-19` (baja lógica + misma patente)

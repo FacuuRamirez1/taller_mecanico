@@ -478,7 +478,7 @@ Organizadas por **épica** (una por ejercicio de la consigna, más una épica tr
 **Como** equipo **quiero** un estado inicial conocido **para** que los 19 casos sean deterministas.
 
 **Criterios de aceptación**
-- [ ] Vacía con `DELETE` en **orden inverso de FK** (no `TRUNCATE`: no dispara el trigger de fila).
+- [ ] Vacía con `TRUNCATE ... RESTART IDENTITY CASCADE` (corregido en C-02, OQ-1: `DELETE` lo rechaza el trigger de sólo agregado; `TRUNCATE` no activa triggers de fila).
 - [ ] Carga primero el catálogo (4 estados), después el resto.
 - [ ] 7 usuarios, 2 clientes (Laura con usuario y 2 vehículos; Jorge sin usuario y 1 vehículo), 4 repuestos con stock inicial como movimiento.
 - [ ] Órdenes 1 (`PENDIENTE`) y 2 (`EN_REPARACION`, 4 bujías con stock 2).

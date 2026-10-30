@@ -300,7 +300,7 @@ erDiagram
 
 `seed.py` **vacía las tablas y deja la base en un estado inicial conocido**; los 19 casos de prueba dependen de él. Se corre `python seed.py` antes de cada archivo `.http`. No es un extra de prueba: **el catálogo de estados es parte de la puesta en marcha** — sin sus filas no se puede crear ninguna orden.
 
-- **Vaciado**: `DELETE` en **orden inverso de claves foráneas** (no `TRUNCATE`, que no dispara el trigger de fila).
+- **Vaciado**: `TRUNCATE ... RESTART IDENTITY CASCADE` (corregido en C-02, OQ-1: un `DELETE` sobre las tablas de sólo agregado lo rechaza el disparador; `TRUNCATE` no activa disparadores de fila).
 - **Contraseñas**: ficticias y viven **sólo** en `seed.py`; no se documentan acá ni en el repo.
 
 | Qué | Datos |

@@ -26,7 +26,7 @@ El repositorio SHALL declarar en `requirements.txt` las versiones exactas del st
 
 ### Requirement: Base PostgreSQL 16 local con rol único
 
-El entorno SHALL usar PostgreSQL 16 instalado localmente, sin Docker, con un único rol de base (`postgres`) y la base `taller_mecanico` accesible en `localhost` en el puerto que declara `POSTGRES_PORT` (5432 en `env.example`; un integrante MAY usar otro puerto declarándolo sólo en su `.env`). Antes de C-02 la base MUST quedar sin tablas: no se crea esquema alguno.
+El entorno SHALL usar PostgreSQL 16 instalado localmente, sin Docker, con un único rol de base (`postgres`) y la base `taller_mecanico` accesible en `localhost` en el puerto que declara `POSTGRES_PORT` (5432 en `env.example`; un integrante MAY usar otro puerto declarándolo sólo en su `.env`). Las únicas tablas de la base MUST ser las que crean las migraciones de Alembic; una base nueva MUST arrancar sin tablas hasta correr `alembic upgrade head`.
 
 #### Scenario: El servidor responde y es la versión correcta
 
@@ -35,8 +35,13 @@ El entorno SHALL usar PostgreSQL 16 instalado localmente, sin Docker, con un ún
 
 #### Scenario: La base existe y está vacía
 
-- **WHEN** se ejecuta `psql -h localhost -p <POSTGRES_PORT> -U postgres -d taller_mecanico -c "\dt"`
+- **WHEN** se crea la base `taller_mecanico` y, antes de migrar, se ejecuta `psql -h localhost -p <POSTGRES_PORT> -U postgres -d taller_mecanico -c "\dt"`
 - **THEN** el comando responde y no lista ninguna tabla
+
+#### Scenario: Sólo el esquema de las migraciones
+
+- **WHEN** la base está en `head` y se ejecuta `\dt`
+- **THEN** se listan las 13 tablas del dominio y `alembic_version`, ninguna otra
 
 #### Scenario: Sin dependencia de Docker
 
@@ -98,8 +103,8 @@ El repositorio MUST NOT contener credenciales reales. `env.example` SHALL listar
 
 #### Scenario: `versions/` nace vacío
 
-- **WHEN** se inspecciona `migrations/versions/`
-- **THEN** no hay archivos de revisión y el esquema sigue sin tablas
+- **WHEN** se inspecciona `migrations/versions/` en un checkout posterior a C-02
+- **THEN** no hay más revisiones que `0001_esquema_inicial.py` y `0002_solo_agregado.py`, y ninguna otra vía crea tablas
 
 #### Scenario: Sin `create_all`
 

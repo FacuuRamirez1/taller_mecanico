@@ -16,9 +16,13 @@ from sqlmodel import SQLModel
 
 from app.core.config import Settings
 
-# TODO C-02: importar los modelos de cada módulo para que `SQLModel.metadata`
-# los conozca (p. ej. `from app.modules.usuarios import models  # noqa: F401`).
-# Sin esos imports, `alembic revision --autogenerate` genera una migración vacía.
+import app.core.metadata  # noqa: F401  (convención de nombres)
+from app.modules.clientes import models as _clientes  # noqa: F401
+from app.modules.ordenes import models as _ordenes  # noqa: F401
+from app.modules.repuestos import models as _repuestos  # noqa: F401
+from app.modules.usuarios import models as _usuarios  # noqa: F401
+# Los cuatro imports registran las tablas en `SQLModel.metadata`; sin ellos
+# `alembic revision --autogenerate` genera una migración vacía.
 
 config = context.config
 

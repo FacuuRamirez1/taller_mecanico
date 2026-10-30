@@ -79,7 +79,7 @@ Valores cerrados para no re-discutirlos en cada change. **No** son exigencias de
 | `BCRYPT_COST` | **12** | `Settings` (la consigna exige que el costo **no** esté fijo en el código) |
 | Contraseña mínima | **8 caracteres** | La consigna sólo fija el máximo |
 | Contraseña máxima | **72 bytes** | Exigido: bcrypt no mira más allá y falla con excepción |
-| Vaciado del seed | **`DELETE` en orden inverso de FKs** | `TRUNCATE` no dispara el trigger de fila |
+| Vaciado del seed | **`TRUNCATE ... RESTART IDENTITY CASCADE`** (corregido en C-02, OQ-1; antes `DELETE`) | `DELETE` lo rechaza el trigger de sólo agregado; `TRUNCATE` no activa triggers de fila y el trigger queda sin bypass |
 
 **Justificación**: son decisiones de bajo impacto, reversibles y sin efecto en la corrección; fijarlas evita preguntas repetidas y roces entre las 4 personas.
 **Trade-offs aceptados**: si la cátedra pidiera otro algoritmo o duración, se cambia una variable de entorno.
