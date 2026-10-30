@@ -1,0 +1,30 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-04: Login con correo existente pero contraseña incorrecta
+# Esperado: 401 Unauthorized
+# {
+#   "detail": "Credenciales inválidas"
+# }
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "PasswordIncorrecta123"
+}
+
+### C-04: Login con correo que no existe en la base de datos
+# Esperado: 401 Unauthorized con exactamente el MISMO cuerpo
+# y tiempo equivalente por verificación contra el hash ficticio del lifespan.
+# {
+#   "detail": "Credenciales inválidas"
+# }
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "inexistente@example.com",
+  "password": "PasswordCualquiera123"
+}
+

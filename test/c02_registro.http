@@ -1,0 +1,104 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-02: Auto-registro de nuevo cliente
+# Crea usuario, asignación de rol CLIENTE y cliente en un solo UoW.
+# Esperado: 201 Created (sin exponer password_hash)
+# {
+#   "id": 8,
+#   "email": "carlos@example.com",
+#   "nombre": "Carlos Alumno",
+#   "activo": true,
+#   "debe_cambiar_password": false,
+#   "password_cambiada_en": null
+# }
+POST {{baseUrl}}/auth/registro
+Content-Type: application/json
+
+{
+  "email": "carlos@example.com",
+  "password": "Password123!",
+  "nombre": "Carlos Alumno",
+  "documento": "35123456",
+  "telefono": "11-4444-5555"
+}
+
+### C-02: Intento de registro con email repetido
+# Esperado: 409 Conflict
+# {
+#   "detail": "Ya existe un usuario con ese email"
+# }
+POST {{baseUrl}}/auth/registro
+Content-Type: application/json
+
+{
+  "email": "carlos@example.com",
+  "password": "Password123!",
+  "nombre": "Carlos Duplicado",
+  "documento": "38999888",
+  "telefono": "11-4444-6666"
+}
+
+### C-02: Intento de registro con documento ya existente (Laura Gómez, 30111222)
+# No se apropia de la ficha ni deja filas sueltas de usuario ni rol.
+# Esperado: 409 Conflict
+# {
+#   "detail": "Ya existe un cliente con ese documento"
+# }
+POST {{baseUrl}}/auth/registro
+Content-Type: application/json
+
+{
+  "email": "otro@example.com",
+  "password": "Password123!",
+  "nombre": "Otro Cliente",
+  "documento": "30111222",
+  "telefono": "11-4444-7777"
+}
+
+### C-02: Intento de registrarse enviando rol en el cuerpo
+# El contrato prohíbe campos no declarados (extra="forbid").
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "extra_forbidden",
+#       "loc": ["body", "rol"],
+#       "msg": "Extra inputs are not permitted"
+#     }
+#   ]
+# }
+POST {{baseUrl}}/auth/registro
+Content-Type: application/json
+
+{
+  "email": "hacker@example.com",
+  "password": "Password123!",
+  "nombre": "Hacker",
+  "documento": "99999999",
+  "telefono": "11-0000-0000",
+  "rol": "ADMIN"
+}
+
+### C-02: Intento de registrar contraseña mayor a 72 bytes UTF-8
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "value_error",
+#       "loc": ["body", "password"],
+#       "msg": "Value error, La contraseña no puede superar 72 bytes en UTF-8"
+#     }
+#   ]
+# }
+POST {{baseUrl}}/auth/registro
+Content-Type: application/json
+
+{
+  "email": "larga@example.com",
+  "password": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "nombre": "Contraseña Larga",
+  "documento": "77777777",
+  "telefono": "11-7777-7777"
+}
+

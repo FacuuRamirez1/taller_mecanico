@@ -1,0 +1,51 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-03: Login exitoso del Administrador
+# Esperado: 200 OK
+# Set-Cookie: access_token=...; HttpOnly; SameSite=lax; Max-Age=1800
+# El cuerpo NO contiene el token JWT.
+# {
+#   "mensaje": "Inicio de sesión exitoso",
+#   "debe_cambiar_password": false,
+#   "expira_en_segundos": 1800
+# }
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-03: Acceso a /auth/yo con la cookie de sesión
+# Esperado: 200 OK
+# {
+#   "id": 1,
+#   "email": "admin@example.com",
+#   "nombre": "Administrador",
+#   "activo": true,
+#   "debe_cambiar_password": false,
+#   "roles": ["ADMIN"],
+#   "roles_token": ["ADMIN"]
+# }
+GET {{baseUrl}}/auth/yo
+
+### C-03: Acceso sin cookie
+# Esperado: 401 Unauthorized
+# {
+#   "detail": "No autenticado"
+# }
+# @no-cookie-jar
+GET {{baseUrl}}/auth/yo
+
+### C-03: Acceso con encabezado Authorization: Bearer (prohibido)
+# Esperado: 401 Unauthorized
+# {
+#   "detail": "No se admite autenticación por encabezado Authorization"
+# }
+# @no-cookie-jar
+GET {{baseUrl}}/auth/yo
+Authorization: Bearer token-invalido-o-valido
+

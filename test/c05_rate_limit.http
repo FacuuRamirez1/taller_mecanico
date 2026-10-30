@@ -1,0 +1,67 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-05: Intento fallido 1 de 5
+# Esperado: 401 Unauthorized
+# Registrado en intento_acceso con exito = false
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ataque@example.com",
+  "password": "Mala1"
+}
+
+### C-05: Intento fallido 2 de 5
+# Esperado: 401 Unauthorized
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ataque@example.com",
+  "password": "Mala2"
+}
+
+### C-05: Intento fallido 3 de 5
+# Esperado: 401 Unauthorized
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ataque@example.com",
+  "password": "Mala3"
+}
+
+### C-05: Intento fallido 4 de 5
+# Esperado: 401 Unauthorized
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ataque@example.com",
+  "password": "Mala4"
+}
+
+### C-05: Intento fallido 5 de 5
+# Esperado: 401 Unauthorized
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ataque@example.com",
+  "password": "Mala5"
+}
+
+### C-05: Sexto intento fallido (debe bloquearse sin verificar hash)
+# Esperado: 429 Too Many Requests con cabecera Retry-After: 60 y respuesta inmediata
+# {
+#   "detail": "Demasiados intentos fallidos. Intente nuevamente más tarde"
+# }
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ataque@example.com",
+  "password": "Mala6"
+}
+

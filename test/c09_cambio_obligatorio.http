@@ -1,0 +1,43 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-09: Login de usuario con cambio de contraseña obligatorio (nuevo@example.com)
+# Esperado: 200 OK con debe_cambiar_password = true
+# @name loginNuevo
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nuevo@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-09: Verificación de sesión inicial válida
+# Esperado: 200 OK
+GET {{baseUrl}}/auth/yo
+
+### C-09: Cambio de contraseña obligatorio
+# Emite nueva cookie y escribe password_cambiada_en.
+# Esperado: 200 OK
+# @name cambioPassword
+POST {{baseUrl}}/auth/cambiar-password
+Content-Type: application/json
+
+{
+  "password_actual": "demo-taller-2026",
+  "password_nueva": "NuevaPassword2026!"
+}
+
+### C-09: Intento de reusar la cookie anterior (debe fallar inmediatamente por iat < password_cambiada_en)
+# Esperado: 401 Unauthorized
+# {
+#   "detail": "Sesión invalidada por cambio de contraseña"
+# }
+# @no-cookie-jar
+GET {{baseUrl}}/auth/yo
+Cookie: {{loginNuevo.response.headers.Set-Cookie}}
+
+### C-09: Uso de la nueva cookie emitida en el cambio
+# Esperado: 200 OK con debe_cambiar_password = false
+GET {{baseUrl}}/auth/yo
+
