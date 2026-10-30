@@ -1,0 +1,185 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-10: Login de recepción (única cuenta que da de alta órdenes junto con ADMIN)
+# Esperado: 200 OK
+# @name loginRecepcion
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "recepcion@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-10: Alta de orden de trabajo (precio copiado del catálogo y total calculado por el servidor)
+# El cliente NO envía precio, total, estado ni creada_en.
+# Esperado: 201 Created
+# {
+#   "id": 3,
+#   "vehiculo_id": 1,
+#   "mecanico_id": null,
+#   "estado": "PENDIENTE",
+#   "falla": "Ruido en la dirección",
+#   "creada_en": "...",
+#   "total": "98500.00",
+#   "patente": "AC456EF",
+#   "cliente": "Laura Gómez",
+#   "items": [
+#     {
+#       "id": 3,
+#       "orden_id": 3,
+#       "repuesto_id": 1,
+#       "cantidad": 1,
+#       "precio_unitario": "8500.00",
+#       "codigo": "FIL-001",
+#       "descripcion": "Filtro de aceite",
+#       "subtotal": "8500.00"
+#     },
+#     {
+#       "id": 4,
+#       "orden_id": 3,
+#       "repuesto_id": 2,
+#       "cantidad": 2,
+#       "precio_unitario": "45000.00",
+#       "codigo": "FRE-010",
+#       "descripcion": "Pastillas de freno",
+#       "subtotal": "90000.00"
+#     }
+#   ],
+#   "historial": [
+#     {
+#       "id": 4,
+#       "orden_id": 3,
+#       "desde_estado": null,
+#       "hasta_estado": "PENDIENTE",
+#       "usuario_id": 3,
+#       "cuando": "..."
+#     }
+#   ]
+# }
+POST {{baseUrl}}/ordenes
+Content-Type: application/json
+
+{
+  "vehiculo_id": 1,
+  "falla": "Ruido en la dirección",
+  "items": [
+    { "repuesto_id": 1, "cantidad": 1 },
+    { "repuesto_id": 2, "cantidad": 2 }
+  ]
+}
+
+### C-10: Alta con un repuesto inexistente (no debe crear la orden)
+# Esperado: 409 Conflict
+# {
+#   "detail": "El repuesto con ID 999 no existe o está dado de baja"
+# }
+POST {{baseUrl}}/ordenes
+Content-Type: application/json
+
+{
+  "vehiculo_id": 1,
+  "falla": "Repuesto fantasma",
+  "items": [
+    { "repuesto_id": 999, "cantidad": 1 }
+  ]
+}
+
+### C-10: Alta con vehículo inexistente
+# La ruta no tiene {id}, el vehículo viene en el cuerpo: 409 y no 404.
+# Esperado: 409 Conflict
+# {
+#   "detail": "El vehículo no existe o está dado de baja"
+# }
+POST {{baseUrl}}/ordenes
+Content-Type: application/json
+
+{
+  "vehiculo_id": 424242,
+  "falla": "Vehículo fantasma",
+  "items": [
+    { "repuesto_id": 1, "cantidad": 1 }
+  ]
+}
+
+### C-10: Alta con el mismo repuesto repetido
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": "No se admiten repuestos repetidos en la misma orden"
+# }
+POST {{baseUrl}}/ordenes
+Content-Type: application/json
+
+{
+  "vehiculo_id": 1,
+  "falla": "Repetido",
+  "items": [
+    { "repuesto_id": 1, "cantidad": 1 },
+    { "repuesto_id": 1, "cantidad": 2 }
+  ]
+}
+
+### C-10: Alta enviando precio, total o estado (campos calculados por el servidor)
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "extra_forbidden",
+#       "loc": ["body", "total"],
+#       "msg": "Extra inputs are not permitted"
+#     }
+#   ]
+# }
+POST {{baseUrl}}/ordenes
+Content-Type: application/json
+
+{
+  "vehiculo_id": 1,
+  "falla": "Intento de fijar el total",
+  "total": 1.00,
+  "items": [
+    { "repuesto_id": 1, "cantidad": 1 }
+  ]
+}
+
+### C-10: El listado no quedó con órdenes de los intentos fallidos
+# Sólo existen las 2 del seed + la creada arriba.
+# Esperado: 200 OK con total 3
+# {
+#   "items": [ ... ],
+#   "total": 3,
+#   "page": 1,
+#   "size": 20,
+#   "pages": 1
+# }
+GET {{baseUrl}}/ordenes?page=1&size=20
+
+### C-10: Login del cliente (dueño del Corolla) para probar el RBAC del alta
+# Esperado: 200 OK
+# @name loginCliente
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "cliente@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-10: Un cliente no puede dar de alta órdenes
+# Esperado: 403 Forbidden
+# {
+#   "detail": "Permiso denegado"
+# }
+
+###
+POST {{baseUrl}}/ordenes
+Content-Type: application/json
+
+{
+  "vehiculo_id": 1,
+  "falla": "Alta desde el cliente",
+  "items": [
+    { "repuesto_id": 1, "cantidad": 1 }
+  ]
+}

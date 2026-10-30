@@ -1,24 +1,32 @@
-"""Router de clientes y vehículos (design §D5).
+"""Router de clientes y vehículos (design §D5, C-05, C-06).
 
-El router recibe `SessionDep`, construye el servicio y traduce los modelos a
-los schemas de salida. Sin lógica de negocio ni consultas acá.
+El router construye ClientesUnitOfWork y lo pasa a ClienteService sin abrirlo.
 """
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from app.core.database import SessionDep
+from app.core.dependencies import UsuarioActivoDep, requiere_rol
 from app.modules.clientes import schemas
 from app.modules.clientes.service import ClienteService
+from app.modules.clientes.unit_of_work import ClientesUoWDep
 
-clientes_router = APIRouter(prefix="/clientes", tags=["clientes"])
-vehiculos_router = APIRouter(prefix="/vehiculos", tags=["vehiculos"])
+clientes_router = APIRouter(
+    prefix="/clientes",
+    tags=["clientes"],
+    dependencies=[Depends(requiere_rol("RECEPCION", "ADMIN"))],
+)
+vehiculos_router = APIRouter(
+    prefix="/vehiculos",
+    tags=["vehiculos"],
+    dependencies=[Depends(requiere_rol("RECEPCION", "ADMIN"))],
+)
 mis_vehiculos_router = APIRouter(tags=["vehiculos"])
 
 
-def get_service(session: SessionDep) -> ClienteService:
-    return ClienteService(session)
+def get_service(uow: ClientesUoWDep) -> ClienteService:
+    return ClienteService(uow)
 
 
 ServiceDep = Annotated[ClienteService, Depends(get_service)]
@@ -59,6 +67,8 @@ async def dar_baja_vehiculo(vehiculo_id: int, service: ServiceDep) -> None:
 
 
 @mis_vehiculos_router.get("/mis-vehiculos", response_model=list[schemas.VehiculoRead])
-async def mis_vehiculos(service: ServiceDep) -> list[schemas.VehiculoRead]:
-    return await service.mis_vehiculos()
-
+async def mis_vehiculos(
+    usuario: UsuarioActivoDep,
+    service: ServiceDep,
+) -> list[schemas.VehiculoRead]:
+    return await service.mis_vehiculos(usuario_id=usuario.id)  # type: ignore[arg-type]

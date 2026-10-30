@@ -1,188 +1,138 @@
-"""Servicio de repuestos (design §D6).
+"""Servicio de repuestos (design §D6, C-06).
 
-Deuda declarada de C-03: el servicio usa `AsyncSession` directa y confirma al
-final. C-06 mueve las consultas a repositorios y el `commit` al UnitOfWork sin
-cambiar las firmas públicas ni los schemas.
+Arquitectura: Router -> Service -> UoW -> Repository -> Model.
+El servicio recibe el UnitOfWork (construido por el router vía inyección de dependencias)
+y lo abre con `async with self.uow:`. NUNCA construye el UoW ni ejecuta commit() directo.
 """
 
-from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import HTTPException
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import HTTPException, status
 
-from app.core.errores import traducir_integrity_error
-from app.core.paginacion import Pagina, paginar
+from app.core.paginacion import Pagina
 from app.modules.repuestos.models import (
     HistorialPrecioRepuesto,
     MovimientoStock,
     Repuesto,
 )
 from app.modules.repuestos.schemas import RepuestoCreate, RepuestoUpdate
-from app.modules.usuarios.models import AsignacionRol, Usuario
-
-# TODO C-06: mover consultas a repositorios y `commit` al UnitOfWork (firmas estables).
-
-EMAIL_ACTOR_INTERNO = "admin@example.com"
+from app.modules.repuestos.unit_of_work import RepuestosUnitOfWork
+from app.modules.usuarios.models import Usuario
 
 
 class RepuestoService:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+    def __init__(self, uow: RepuestosUnitOfWork, actor_actual: Usuario | None = None) -> None:
+        self.uow = uow
+        self.actor_actual = actor_actual
 
     async def _actor(self) -> Usuario:
-        # TODO C-05: reemplazar el actor interno por el usuario autenticado.
-        usuario = await self.session.scalar(
-            select(Usuario).where(Usuario.email == EMAIL_ACTOR_INTERNO)
-        )
-        if usuario is None:
-            usuario = await self.session.scalar(
-                select(Usuario)
-                .join(AsignacionRol, AsignacionRol.usuario_id == Usuario.id)
-                .where(
-                    AsignacionRol.rol == "ADMIN",
-                    AsignacionRol.revocada_en.is_(None),
-                    Usuario.activo.is_(True),
-                )
-                .order_by(Usuario.id)
-            )
+        """Actor que firma el movimiento o la línea de historial.
+
+        El router lo inyecta cuando la ruta es de ADMIN; si no llegó, se resuelve
+        por el repositorio de usuarios (el servicio nunca toca la sesión).
+        """
+        if self.actor_actual is not None:
+            return self.actor_actual
+
+        usuario = await self.uow.usuarios.obtener_actor_por_defecto()
         if usuario is None:
             raise HTTPException(
-                status_code=409,
+                status_code=status.HTTP_409_CONFLICT,
                 detail="No hay un usuario administrador para registrar la operación",
             )
         return usuario
 
     async def _obtener_vigente(self, repuesto_id: int) -> Repuesto:
-        repuesto = await self.session.scalar(
-            select(Repuesto).where(
-                Repuesto.id == repuesto_id,
-                Repuesto.borrado_en.is_(None),
-            )
-        )
+        repuesto = await self.uow.repuestos.get_by_id(repuesto_id)
         if repuesto is None:
-            raise HTTPException(status_code=404, detail="Repuesto no encontrado")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Repuesto no encontrado",
+            )
         return repuesto
 
     async def listar(self, q: str | None, page: int, size: int) -> Pagina[Repuesto]:
-        sentencia = select(Repuesto).where(Repuesto.borrado_en.is_(None))
-        if q:
-            sentencia = sentencia.where(Repuesto.descripcion.ilike(f"%{q}%"))
-        sentencia = sentencia.order_by(Repuesto.id.desc())
-        return await paginar(self.session, sentencia, page, size)
+        sentencia = self.uow.repuestos.consulta_listar(q=q)
+        return await self.uow.repuestos.paginar(sentencia, page, size)
 
     async def obtener(self, repuesto_id: int) -> Repuesto:
         return await self._obtener_vigente(repuesto_id)
 
     async def crear(self, datos: RepuestoCreate) -> Repuesto:
         actor = await self._actor()
-        repuesto = Repuesto(
-            codigo=datos.codigo,
-            descripcion=datos.descripcion,
-            precio=datos.precio,
-            stock=datos.stock_inicial,
-        )
-        self.session.add(repuesto)
-        try:
-            await self.session.flush()
+        async with self.uow:
+            repuesto = Repuesto(
+                codigo=datos.codigo,
+                descripcion=datos.descripcion,
+                precio=datos.precio,
+                stock=datos.stock_inicial,
+            )
+            await self.uow.repuestos.add(repuesto)
             if datos.stock_inicial > 0:
-                self.session.add(
-                    MovimientoStock(
-                        repuesto_id=repuesto.id,
-                        orden_id=None,
-                        usuario_id=actor.id,
-                        cantidad=datos.stock_inicial,
-                        motivo="Stock inicial",
-                    )
+                movimiento = MovimientoStock(
+                    repuesto_id=repuesto.id,
+                    orden_id=None,
+                    usuario_id=actor.id,
+                    cantidad=datos.stock_inicial,
+                    motivo="Stock inicial",
                 )
-                await self.session.flush()
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise traducir_integrity_error(exc) from None
+                await self.uow.movimientos.add(movimiento)
         return repuesto
 
     async def actualizar(self, repuesto_id: int, datos: RepuestoUpdate) -> Repuesto:
-        repuesto = await self._obtener_vigente(repuesto_id)
-        cambios = datos.model_dump(exclude_unset=True)
+        async with self.uow:
+            repuesto = await self._obtener_vigente(repuesto_id)
+            cambios = datos.model_dump(exclude_unset=True)
 
-        precio_nuevo: Decimal | None = cambios.get("precio")
-        if precio_nuevo is not None and precio_nuevo != repuesto.precio:
-            if precio_nuevo < repuesto.precio:
-                raise HTTPException(
-                    status_code=422,
-                    detail="El precio no puede ser menor que el actual",
-                )
-            actor = await self._actor()
-            self.session.add(
-                HistorialPrecioRepuesto(
+            precio_nuevo: Decimal | None = cambios.get("precio")
+            if precio_nuevo is not None and precio_nuevo != repuesto.precio:
+                # Regla IN-05 / Q-10: baja de precio -> 422
+                if precio_nuevo < repuesto.precio:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="El precio no puede ser menor que el actual",
+                    )
+                actor = await self._actor()
+                historial = HistorialPrecioRepuesto(
                     repuesto_id=repuesto.id,
                     usuario_id=actor.id,
                     precio_anterior=repuesto.precio,
                     precio_nuevo=precio_nuevo,
                 )
-            )
-            repuesto.precio = precio_nuevo
+                await self.uow.precios.add(historial)
+                repuesto.precio = precio_nuevo
 
-        descripcion = cambios.get("descripcion")
-        if descripcion is not None:
-            repuesto.descripcion = descripcion
+            descripcion = cambios.get("descripcion")
+            if descripcion is not None:
+                repuesto.descripcion = descripcion
 
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise traducir_integrity_error(exc) from None
+            await self.uow.repuestos.update(repuesto)
         return repuesto
 
     async def dar_baja(self, repuesto_id: int) -> None:
-        repuesto = await self._obtener_vigente(repuesto_id)
-        repuesto.borrado_en = datetime.now(timezone.utc)
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise traducir_integrity_error(exc) from None
+        async with self.uow:
+            repuesto = await self._obtener_vigente(repuesto_id)
+            await self.uow.repuestos.soft_delete(repuesto)
 
     async def reponer(self, repuesto_id: int, cantidad: int) -> Repuesto:
-        repuesto = await self._obtener_vigente(repuesto_id)
-        actor = await self._actor()
-        repuesto.stock += cantidad
-        self.session.add(
-            MovimientoStock(
+        async with self.uow:
+            repuesto = await self._obtener_vigente(repuesto_id)
+            actor = await self._actor()
+            await self.uow.repuestos.ajustar_stock(repuesto, delta=cantidad)
+            movimiento = MovimientoStock(
                 repuesto_id=repuesto.id,
                 orden_id=None,
                 usuario_id=actor.id,
                 cantidad=cantidad,
                 motivo="Reposición",
             )
-        )
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise traducir_integrity_error(exc) from None
+            await self.uow.movimientos.add(movimiento)
         return repuesto
 
     async def movimientos(self, repuesto_id: int) -> list[MovimientoStock]:
         await self._obtener_vigente(repuesto_id)
-        resultado = await self.session.execute(
-            select(MovimientoStock)
-            .where(MovimientoStock.repuesto_id == repuesto_id)
-            .order_by(MovimientoStock.cuando.desc(), MovimientoStock.id.desc())
-        )
-        return list(resultado.scalars().all())
+        return await self.uow.movimientos.listar_por_repuesto(repuesto_id)
 
     async def precios(self, repuesto_id: int) -> list[HistorialPrecioRepuesto]:
         await self._obtener_vigente(repuesto_id)
-        resultado = await self.session.execute(
-            select(HistorialPrecioRepuesto)
-            .where(HistorialPrecioRepuesto.repuesto_id == repuesto_id)
-            .order_by(
-                HistorialPrecioRepuesto.cuando.desc(),
-                HistorialPrecioRepuesto.id.desc(),
-            )
-        )
-        return list(resultado.scalars().all())
+        return await self.uow.precios.listar_por_repuesto(repuesto_id)

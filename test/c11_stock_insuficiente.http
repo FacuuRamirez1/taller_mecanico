@@ -1,0 +1,95 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-11: Login del mecánico NO asignado a la Orden 2 (Cronos, asignada a mecanico@example.com)
+# Esperado: 200 OK
+# @name loginMecanico2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "mecanico2@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-11: Otro mecánico intenta terminar la Orden 2
+# El permiso se evalúa antes que el stock: 403 y no 409.
+# Esperado: 403 Forbidden
+# {
+#   "detail": "Solo el mecánico asignado o un administrador pueden terminar la orden"
+# }
+POST {{baseUrl}}/ordenes/2/terminar
+
+### C-11: Login del mecánico asignado (Orden 2: 4 bujías, stock disponible 2)
+# Esperado: 200 OK
+# @name loginMecanico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "mecanico@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-11: Terminar la Orden 2 con stock insuficiente
+# BUJ-001 requiere 4 y hay 2: la orden es todo o nada.
+# Esperado: 409 Conflict
+# {
+#   "detail": "Stock insuficiente para el repuesto BUJ-001: disponible 2, requerido 4"
+# }
+POST {{baseUrl}}/ordenes/2/terminar
+
+### C-11: El stock no cambió tras el intento fallido
+# Esperado: 200 OK con stock 2 y precio 3200.0
+# {
+#   "id": 3,
+#   "codigo": "BUJ-001",
+#   "descripcion": "Bujía",
+#   "precio": 3200.0,
+#   "stock": 2
+# }
+GET {{baseUrl}}/repuestos/3
+
+### C-11: La orden sigue EN_REPARACION y con un único historial de todos los intentos
+# Esperado: 200 OK
+# {
+#   "id": 2,
+#   "vehiculo_id": 3,
+#   "mecanico_id": 4,
+#   "estado": "EN_REPARACION",
+#   "falla": "Cambio de bujías",
+#   "creada_en": "...",
+#   "total": "12800.00",
+#   "patente": "AA111AA",
+#   "cliente": "Jorge Pérez",
+#   "items": [ { "repuesto_id": 3, "cantidad": 4, "codigo": "BUJ-001", "subtotal": "12800.00", ... } ],
+#   "historial": [ ... ]  // sigue con 2 líneas: null->PENDIENTE y PENDIENTE->EN_REPARACION
+# }
+GET {{baseUrl}}/ordenes/2
+
+### C-11: No se registraron movimientos de stock por la orden
+# Los movimientos de BUJ-001 son sólo el "Stock inicial" del seed (id 3).
+# Esperado: 200 OK con una sola línea, cantidad 2 y motivo "Stock inicial"
+# [
+#   {
+#     "id": 3,
+#     "repuesto_id": 3,
+#     "orden_id": null,
+#     "usuario_id": 1,
+#     "cantidad": 2,
+#     "motivo": "Stock inicial",
+#     "cuando": "..."
+#   }
+# ]
+# La ruta de movimientos es sólo para ADMIN: este bloque debe ejecutarse con sesión ADMIN.
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
+###
+GET {{baseUrl}}/repuestos/3/movimientos

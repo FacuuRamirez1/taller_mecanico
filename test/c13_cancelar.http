@@ -1,0 +1,128 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-13: Login de un mecánico (no es recepción, admin ni dueño)
+# Esperado: 200 OK
+# @name loginMecanico2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "mecanico2@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-13: Un mecánico intenta cancelar la Orden 1 (PENDIENTE)
+# El 403 se evalúa antes que el estado: 403 y no 200.
+# Esperado: 403 Forbidden
+# {
+#   "detail": "Permiso denegado: no puede cancelar esta orden"
+# }
+POST {{baseUrl}}/ordenes/1/cancelar
+
+### C-13: Login de recepción
+# Esperado: 200 OK
+# @name loginRecepcion
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "recepcion@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-13: Recepción cancela la Orden 1 (PENDIENTE -> CANCELADA)
+# Esperado: 200 OK
+# {
+#   "id": 1,
+#   "vehiculo_id": 1,
+#   "mecanico_id": null,
+#   "estado": "CANCELADA",
+#   "falla": "Ruido en el motor",
+#   "creada_en": "...",
+#   "total": "8500.00"
+# }
+POST {{baseUrl}}/ordenes/1/cancelar
+
+### C-13: Detalle de la orden cancelada con su historial
+# Esperado: 200 OK
+# {
+#   "id": 1,
+#   "estado": "CANCELADA",
+#   "patente": "AC456EF",
+#   "cliente": "Laura Gómez",
+#   "historial": [
+#     { "desde_estado": null, "hasta_estado": "PENDIENTE", "usuario_id": 3 },
+#     { "desde_estado": "PENDIENTE", "hasta_estado": "CANCELADA", "usuario_id": 3 }
+#   ]
+# }
+GET {{baseUrl}}/ordenes/1
+
+### C-13: Cancelar dos veces la misma orden
+# Esperado: 409 Conflict
+# {
+#   "detail": "Solo se puede cancelar una orden en estado PENDIENTE (estado actual: CANCELADA)"
+# }
+POST {{baseUrl}}/ordenes/1/cancelar
+
+### C-13: Alta de una orden nueva para el Corolla de Laura (para cancelarla como dueña)
+# Esperado: 201 Created con estado PENDIENTE
+# {
+#   "id": 3,
+#   "vehiculo_id": 1,
+#   "estado": "PENDIENTE",
+#   "total": "8500.00",
+#   "patente": "AC456EF",
+#   "cliente": "Laura Gómez"
+# }
+POST {{baseUrl}}/ordenes
+Content-Type: application/json
+
+{
+  "vehiculo_id": 1,
+  "falla": "Frenos que chillan",
+  "items": [
+    { "repuesto_id": 1, "cantidad": 1 }
+  ]
+}
+
+### C-13: Login de la clienta dueña del vehículo
+# Esperado: 200 OK
+# @name loginCliente
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "cliente@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-13: La dueña cancela su propia orden (RN-12: el dueño del vehículo puede)
+# Esperado: 200 OK
+# {
+#   "id": 3,
+#   "estado": "CANCELADA",
+#   "total": "8500.00"
+# }
+POST {{baseUrl}}/ordenes/3/cancelar
+
+### C-13: La clienta no puede cancelar la orden de un vehículo ajeno (Cronos de Jorge)
+# Esperado: 403 Forbidden (403 antes que el 409 de estado)
+# {
+#   "detail": "Permiso denegado: no puede cancelar esta orden"
+# }
+POST {{baseUrl}}/ordenes/2/cancelar
+
+### C-13: La clienta no puede ver el detalle de una orden ajena
+# Esperado: 403 Forbidden
+# {
+#   "detail": "Permiso denegado: no tiene acceso a esta orden"
+# }
+GET {{baseUrl}}/ordenes/2
+
+### C-13: Una orden inexistente responde 404 antes que 403
+# Esperado: 404 Not Found
+# {
+#   "detail": "Orden de trabajo no encontrada"
+# }
+POST {{baseUrl}}/ordenes/999/cancelar

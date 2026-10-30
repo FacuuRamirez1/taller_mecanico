@@ -1,0 +1,177 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-12: Login de administración (única cuenta que puede reponer stock)
+# Esperado: 200 OK
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-12: Reposición de stock de BUJ-001 (2 + 5 = 7)
+# Esperado: 200 OK
+# {
+#   "id": 3,
+#   "codigo": "BUJ-001",
+#   "descripcion": "Bujía",
+#   "precio": 3200.0,
+#   "stock": 7
+# }
+POST {{baseUrl}}/repuestos/3/reponer
+Content-Type: application/json
+
+{
+  "cantidad": 5
+}
+
+### C-12: El movimiento de reposición quedó registrado con su actor
+# Esperado: 200 OK (el primero es la reposición recién hecha)
+# [
+#   {
+#     "id": 8,
+#     "repuesto_id": 3,
+#     "orden_id": null,
+#     "usuario_id": 1,
+#     "cantidad": 5,
+#     "motivo": "Reposición",
+#     "cuando": "..."
+#   },
+#   {
+#     "id": 3,
+#     "repuesto_id": 3,
+#     "orden_id": null,
+#     "usuario_id": 1,
+#     "cantidad": 2,
+#     "motivo": "Stock inicial",
+#     "cuando": "..."
+#   }
+# ]
+GET {{baseUrl}}/repuestos/3/movimientos
+
+### C-12: Login del mecánico asignado a la Orden 2 (Cronos, 4 bujías)
+# Esperado: 200 OK
+# @name loginMecanico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "mecanico@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-12: Terminar la Orden 2 ahora que hay stock (7 >= 4)
+# Esperado: 200 OK
+# {
+#   "id": 2,
+#   "vehiculo_id": 3,
+#   "mecanico_id": 4,
+#   "estado": "TERMINADA",
+#   "falla": "Cambio de bujías",
+#   "creada_en": "...",
+#   "total": "12800.00"
+# }
+POST {{baseUrl}}/ordenes/2/terminar
+
+### C-12: El stock bajó por consumo (7 - 4 = 3)
+# Esperado: 200 OK con stock 3
+# {
+#   "id": 3,
+#   "codigo": "BUJ-001",
+#   "descripcion": "Bujía",
+#   "precio": 3200.0,
+#   "stock": 3
+# }
+GET {{baseUrl}}/repuestos/3
+
+### C-12: Movimiento de consumo generado por la orden
+# Los movimientos son sólo para ADMIN, así que hay que volver a esa sesión.
+# Esperado: 200 OK
+# @name loginAdmin2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
+###
+# Esperado: 200 OK (el primero es el consumo, 7 - 4 = 3 en stock)
+# [
+#   {
+#     "id": 9,
+#     "repuesto_id": 3,
+#     "orden_id": 2,
+#     "usuario_id": 4,
+#     "cantidad": 4,
+#     "motivo": "Consumo en orden",
+#     "cuando": "..."
+#   },
+#   ...
+# ]
+GET {{baseUrl}}/repuestos/3/movimientos
+
+### C-12: No se puede volver a terminar una orden ya cerrada
+# Esperado: 409 Conflict
+# {
+#   "detail": "Solo se puede terminar una orden en estado EN_REPARACION (estado actual: TERMINADA)"
+# }
+POST {{baseUrl}}/ordenes/2/terminar
+
+### C-12: Detalle de la orden cerrada con su historial completo
+# El detalle lo puede ver el personal; la sesión ya es ADMIN.
+# Esperado: 200 OK
+# {
+#   "id": 2,
+#   "estado": "TERMINADA",
+#   "patente": "AA111AA",
+#   "cliente": "Jorge Pérez",
+#   "items": [ { "repuesto_id": 3, "cantidad": 4, "codigo": "BUJ-001", "descripcion": "Bujía", "subtotal": "12800.00" } ],
+#   "historial": [
+#     { "desde_estado": null, "hasta_estado": "PENDIENTE", "usuario_id": 3 },
+#     { "desde_estado": "PENDIENTE", "hasta_estado": "EN_REPARACION", "usuario_id": 4 },
+#     { "desde_estado": "EN_REPARACION", "hasta_estado": "TERMINADA", "usuario_id": 4 }
+#   ]
+# }
+GET {{baseUrl}}/ordenes/2
+
+### C-12: Vuelta a la sesión del mecánico para comprobar el RBAC de la cancelación
+# Esperado: 200 OK
+# @name loginMecanico2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "mecanico@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-12: Un mecánico no puede cancelar (el 403 se evalúa antes que el estado)
+# Esperado: 403 Forbidden
+# {
+#   "detail": "Permiso denegado: no puede cancelar esta orden"
+# }
+POST {{baseUrl}}/ordenes/2/cancelar
+
+### C-12: Login de recepción para comprobar el 409 de estado
+# Esperado: 200 OK
+# @name loginRecepcion
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "recepcion@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-12: Recepción intenta cancelar una orden TERMINADA
+# Esperado: 409 Conflict
+# {
+#   "detail": "Solo se puede cancelar una orden en estado PENDIENTE (estado actual: TERMINADA)"
+# }
+POST {{baseUrl}}/ordenes/2/cancelar
+

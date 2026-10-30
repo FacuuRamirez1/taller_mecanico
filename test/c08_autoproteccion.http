@@ -1,0 +1,44 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-08: Login del Administrador principal (id = 1)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-08: Intento de auto-revocación del rol ADMIN por parte del propio admin
+# Esperado: 409 Conflict
+# {
+#   "detail": "Un administrador no puede revocarse su propio rol ADMIN"
+# }
+DELETE {{baseUrl}}/usuarios/1/roles/ADMIN
+
+### C-08: Revocación de rol ADMIN al segundo administrador (id = 2)
+# Esperado: 200 OK
+DELETE {{baseUrl}}/usuarios/2/roles/ADMIN
+
+### C-08: Intento de asignar rol con fecha en el pasado
+# Esperado: 422 Unprocessable Entity
+POST {{baseUrl}}/usuarios/2/roles
+Content-Type: application/json
+
+{
+  "rol": "MECANICO",
+  "vence_en": "2020-01-01T00:00:00Z"
+}
+
+### C-08: Intento de asignar rol con fecha sin zona horaria
+# Esperado: 422 Unprocessable Entity
+POST {{baseUrl}}/usuarios/2/roles
+Content-Type: application/json
+
+{
+  "rol": "MECANICO",
+  "vence_en": "2030-01-01T00:00:00"
+}
+

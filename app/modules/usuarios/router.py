@@ -1,30 +1,37 @@
-"""Router de autenticación (design §D1).
+"""Router de autenticación, personal, roles y eventos (design §D1, C-04, C-05, C-06).
 
-Rutas bajo el prefijo `/auth`:
-- POST /auth/registro
-- POST /auth/login
-- POST /auth/logout
-- GET /auth/yo
-- POST /auth/cambiar-password
+El router construye UsuariosUnitOfWork y lo pasa a UsuarioService sin abrirlo.
 """
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, status
 
-from app.core.database import SessionDep
-from app.core.dependencies import SettingsDep, UsuarioActualDep
+from app.core.dependencies import (
+    SettingsDep,
+    UsuarioActualDep,
+    requiere_rol,
+)
+from app.core.paginacion import Pagina, PaginacionDep
 from app.modules.usuarios import schemas
+from app.modules.usuarios.models import Usuario
 from app.modules.usuarios.service import UsuarioService
+from app.modules.usuarios.unit_of_work import UsuariosUoWDep
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+usuarios_router = APIRouter(prefix="/usuarios", tags=["usuarios"])
+eventos_router = APIRouter(prefix="/eventos", tags=["eventos"])
 
 
-def get_service(session: SessionDep, request: Request) -> UsuarioService:
-    return UsuarioService(session=session, sessionmaker=request.app.state.sessionmaker)
+def get_service(uow: UsuariosUoWDep, request: Request) -> UsuarioService:
+    return UsuarioService(uow=uow, sessionmaker=request.app.state.sessionmaker)
 
 
 ServiceDep = Annotated[UsuarioService, Depends(get_service)]
+AdminDep = Annotated[Usuario, Depends(requiere_rol("ADMIN"))]
+
+
+# --- Rutas de /auth (Grupo abierto en cuanto al bloqueo de cambio obligatorio) ---
 
 
 @router.post(
@@ -105,3 +112,91 @@ async def cambiar_password(
     )
     return schemas.MensajeResponse(mensaje="Contraseña actualizada exitosamente")
 
+
+# --- Rutas de /usuarios (Grupo protegido, ADMIN) ---
+
+
+@usuarios_router.post(
+    "",
+    response_model=schemas.UsuarioRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def crear_personal(
+    datos: schemas.UsuarioPersonalCreate,
+    admin: AdminDep,
+    service: ServiceDep,
+    settings: SettingsDep,
+) -> schemas.UsuarioRead:
+    return await service.crear_personal(
+        datos=datos,
+        admin_id=admin.id,  # type: ignore[arg-type]
+        admin_email=admin.email,
+        settings=settings,
+    )
+
+
+@usuarios_router.get(
+    "/{usuario_id}/roles",
+    response_model=list[schemas.AsignacionRolRead],
+)
+async def listar_roles_usuario(
+    usuario_id: int,
+    _admin: AdminDep,
+    service: ServiceDep,
+) -> list[schemas.AsignacionRolRead]:
+    return await service.listar_roles_usuario(usuario_id=usuario_id)
+
+
+@usuarios_router.post(
+    "/{usuario_id}/roles",
+    response_model=schemas.AsignacionRolRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def asignar_rol(
+    usuario_id: int,
+    datos: schemas.AsignacionRolCreate,
+    admin: AdminDep,
+    service: ServiceDep,
+) -> schemas.AsignacionRolRead:
+    return await service.asignar_rol(
+        usuario_id=usuario_id,
+        datos=datos,
+        admin_id=admin.id,  # type: ignore[arg-type]
+        admin_email=admin.email,
+    )
+
+
+@usuarios_router.delete(
+    "/{usuario_id}/roles/{rol}",
+    response_model=schemas.MensajeResponse,
+)
+async def revocar_rol(
+    usuario_id: int,
+    rol: schemas.RolEnum,
+    admin: AdminDep,
+    service: ServiceDep,
+) -> schemas.MensajeResponse:
+    return await service.revocar_rol(
+        usuario_id=usuario_id,
+        rol=rol,
+        admin_id=admin.id,  # type: ignore[arg-type]
+        admin_email=admin.email,
+    )
+
+
+# --- Rutas de /eventos (Grupo protegido, ADMIN) ---
+
+
+@eventos_router.get(
+    "",
+    response_model=Pagina[schemas.EventoSeguridadRead],
+)
+async def listar_eventos(
+    _admin: AdminDep,
+    service: ServiceDep,
+    paginacion: PaginacionDep,
+) -> Pagina[schemas.EventoSeguridadRead]:
+    return await service.listar_eventos(
+        page=paginacion.page,
+        size=paginacion.size,
+    )

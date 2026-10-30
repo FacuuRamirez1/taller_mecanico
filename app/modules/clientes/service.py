@@ -1,54 +1,38 @@
-"""Servicio de clientes y vehículos (design §D7).
+"""Servicio de clientes y vehículos (design §D7, C-06).
 
-Deuda declarada de C-03: el servicio usa `AsyncSession` directa y confirma al
-final. C-06 mueve las consultas a repositorios y el `commit` al UnitOfWork sin
-cambiar las firmas públicas ni los schemas.
+Arquitectura: Router -> Service -> UoW -> Repository -> Model.
+El servicio opera sobre `ClientesUnitOfWork` y no accede directamente a la sesión.
 """
 
-from datetime import datetime, timezone
+from fastapi import HTTPException, status
 
-from fastapi import HTTPException
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
-from sqlmodel.ext.asyncio.session import AsyncSession
-
-from app.core.errores import traducir_integrity_error
 from app.modules.clientes import schemas
 from app.modules.clientes.models import Cliente, Vehiculo
-from app.modules.ordenes.models import EstadoOrden, OrdenTrabajo
-
-# TODO C-06: mover consultas a repositorios y `commit` al UnitOfWork (firmas estables).
+from app.modules.clientes.unit_of_work import ClientesUnitOfWork
 
 
 class ClienteService:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+    def __init__(self, uow: ClientesUnitOfWork) -> None:
+        self.uow = uow
 
     async def crear_cliente(self, datos: schemas.ClienteCreate) -> Cliente:
-        cliente = Cliente(
-            nombre=datos.nombre,
-            documento=datos.documento,
-            telefono=datos.telefono,
-            usuario_id=None,
-        )
-        self.session.add(cliente)
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise traducir_integrity_error(exc) from None
+        async with self.uow:
+            cliente = Cliente(
+                nombre=datos.nombre,
+                documento=datos.documento,
+                telefono=datos.telefono,
+                usuario_id=None,
+            )
+            await self.uow.clientes.add(cliente)
         return cliente
 
     async def obtener_cliente(self, cliente_id: int) -> schemas.ClienteDetalleRead:
-        sentencia = (
-            select(Cliente)
-            .options(selectinload(Cliente.vehiculos))
-            .where(Cliente.id == cliente_id)
-        )
-        cliente = await self.session.scalar(sentencia)
+        cliente = await self.uow.clientes.get_by_id_con_vehiculos(cliente_id)
         if cliente is None:
-            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cliente no encontrado",
+            )
         vehiculos_vigentes = [
             schemas.VehiculoRead.model_validate(v)
             for v in cliente.vehiculos
@@ -66,60 +50,43 @@ class ClienteService:
     async def crear_vehiculo(
         self, cliente_id: int, datos: schemas.VehiculoCreate
     ) -> Vehiculo:
-        cliente = await self.session.scalar(
-            select(Cliente).where(Cliente.id == cliente_id)
-        )
-        if cliente is None:
-            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+        async with self.uow:
+            cliente = await self.uow.clientes.get_by_id(cliente_id)
+            if cliente is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Cliente no encontrado",
+                )
 
-        vehiculo = Vehiculo(
-            cliente_id=cliente_id,
-            patente=datos.patente,
-            marca=datos.marca,
-            modelo=datos.modelo,
-            anio=datos.anio,
-        )
-        self.session.add(vehiculo)
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise traducir_integrity_error(exc) from None
+            vehiculo = Vehiculo(
+                cliente_id=cliente_id,
+                patente=datos.patente,
+                marca=datos.marca,
+                modelo=datos.modelo,
+                anio=datos.anio,
+            )
+            await self.uow.vehiculos.add(vehiculo)
         return vehiculo
 
     async def dar_baja_vehiculo(self, vehiculo_id: int) -> None:
-        vehiculo = await self.session.scalar(
-            select(Vehiculo).where(
-                Vehiculo.id == vehiculo_id,
-                Vehiculo.borrado_en.is_(None),
-            )
-        )
-        if vehiculo is None:
-            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+        async with self.uow:
+            vehiculo = await self.uow.vehiculos.get_by_id(vehiculo_id)
+            if vehiculo is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Vehículo no encontrado",
+                )
 
-        orden_abierta = await self.session.scalar(
-            select(OrdenTrabajo.id)
-            .join(EstadoOrden, OrdenTrabajo.estado == EstadoOrden.codigo)
-            .where(
-                OrdenTrabajo.vehiculo_id == vehiculo_id,
-                EstadoOrden.es_final.is_(False),
-            )
-            .limit(1)
-        )
-        if orden_abierta is not None:
-            raise HTTPException(
-                status_code=409,
-                detail="No se puede dar de baja un vehículo con órdenes abiertas",
-            )
+            if await self.uow.vehiculos.tiene_ordenes_abiertas(vehiculo_id):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="No se puede dar de baja un vehículo con órdenes abiertas",
+                )
 
-        vehiculo.borrado_en = datetime.now(timezone.utc)
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise traducir_integrity_error(exc) from None
+            await self.uow.vehiculos.soft_delete(vehiculo)
 
-    async def mis_vehiculos(self) -> list[schemas.VehiculoRead]:
-        # TODO C-05: inyectar el usuario autenticado y filtrar por su cliente.
-        return []
-
+    async def mis_vehiculos(self, usuario_id: int) -> list[Vehiculo]:
+        cliente = await self.uow.clientes.get_by_usuario_id(usuario_id)
+        if cliente is None:
+            return []
+        return await self.uow.vehiculos.listar_vigentes_por_cliente(cliente.id)  # type: ignore[arg-type]

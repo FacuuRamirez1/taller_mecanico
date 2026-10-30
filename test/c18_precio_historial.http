@@ -1,0 +1,181 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-18: Login de administración (dueño del catálogo de repuestos)
+# Esperado: 200 OK
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-18: Aumento de precio del FIL-001 (8500 -> 9500)
+# Esperado: 200 OK
+# {
+#   "id": 1,
+#   "codigo": "FIL-001",
+#   "descripcion": "Filtro de aceite",
+#   "precio": 9500.0,
+#   "stock": 10
+# }
+PATCH {{baseUrl}}/repuestos/1
+Content-Type: application/json
+
+{
+  "precio": 9500.00
+}
+
+### C-18: El historial de precios registra el cambio con su actor
+# Esperado: 200 OK (el más reciente primero)
+# [
+#   {
+#     "id": 2,
+#     "repuesto_id": 1,
+#     "usuario_id": 1,
+#     "precio_anterior": 8500.0,
+#     "precio_nuevo": 9500.0,
+#     "cuando": "..."
+#   },
+#   {
+#     "id": 1,
+#     "repuesto_id": 1,
+#     "usuario_id": 1,
+#     "precio_anterior": 8000.0,
+#     "precio_nuevo": 8500.0,
+#     "cuando": "..."
+#   }
+# ]
+GET {{baseUrl}}/repuestos/1/precios
+
+### C-18: Bajar el precio está prohibido (RN/IN-05)
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": "El precio no puede ser menor que el actual"
+# }
+PATCH {{baseUrl}}/repuestos/1
+Content-Type: application/json
+
+{
+  "precio": 7000.00
+}
+
+### C-18: El mismo precio no genera línea de historial (idempotente)
+# Esperado: 200 OK con precio 9500.0 y el historial todavía con 2 líneas
+PATCH {{baseUrl}}/repuestos/1
+Content-Type: application/json
+
+{
+  "precio": 9500.00
+}
+
+### C-18: Alta de repuesto con stock inicial (deja el movimiento de apertura)
+# Esperado: 201 Created
+# {
+#   "id": 5,
+#   "codigo": "TST-900",
+#   "descripcion": "Repuesto de prueba",
+#   "precio": 1000.0,
+#   "stock": 3
+# }
+POST {{baseUrl}}/repuestos
+Content-Type: application/json
+
+{
+  "codigo": "TST-900",
+  "descripcion": "Repuesto de prueba",
+  "precio": 1000.00,
+  "stock_inicial": 3
+}
+
+### C-18: Movimiento de apertura del repuesto nuevo
+# Esperado: 200 OK
+# [
+#   {
+#     "id": 8,
+#     "repuesto_id": 5,
+#     "orden_id": null,
+#     "usuario_id": 1,
+#     "cantidad": 3,
+#     "motivo": "Stock inicial",
+#     "cuando": "..."
+#   }
+# ]
+GET {{baseUrl}}/repuestos/5/movimientos
+
+### C-18: Alta con un código ya vigente
+# El índice único parcial ux_repuesto_codigo_vigente lo detecta en el flush: 409, no 500.
+# Esperado: 409 Conflict
+# {
+#   "detail": "Ya existe un repuesto vigente con ese código"
+# }
+POST {{baseUrl}}/repuestos
+Content-Type: application/json
+
+{
+  "codigo": "FRE-010",
+  "descripcion": "Duplicado",
+  "precio": 1000.00,
+  "stock_inicial": 0
+}
+
+### C-18: Alta con precio inválido (lo rechaza el contrato)
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "greater_than",
+#       "loc": ["body", "precio"],
+#       "msg": "Input should be greater than 0"
+#     }
+#   ]
+# }
+POST {{baseUrl}}/repuestos
+Content-Type: application/json
+
+{
+  "codigo": "NEG-001",
+  "descripcion": "Precio negativo",
+  "precio": -1,
+  "stock_inicial": 0
+}
+
+### C-18: Baja lógica del ACE-530
+# Esperado: 204 No Content
+DELETE {{baseUrl}}/repuestos/4
+
+### C-18: El repuesto dado de baja ya no se puede consultar
+# Esperado: 404 Not Found
+# {
+#   "detail": "Repuesto no encontrado"
+# }
+GET {{baseUrl}}/repuestos/4
+
+### C-18: Ni su historial de precios
+# Esperado: 404 Not Found
+# {
+#   "detail": "Repuesto no encontrado"
+# }
+GET {{baseUrl}}/repuestos/4/precios
+
+### C-18: El código del repuesto dado de baja vuelve a estar disponible
+# El índice es parcial (borrado_en IS NULL).
+# Esperado: 201 Created
+# {
+#   "id": 6,
+#   "codigo": "ACE-530",
+#   "descripcion": "Aceite 5W-40 por litro",
+#   "precio": 9800.0,
+#   "stock": 0
+# }
+POST {{baseUrl}}/repuestos
+Content-Type: application/json
+
+{
+  "codigo": "ACE-530",
+  "descripcion": "Aceite 5W-40 por litro",
+  "precio": 9800.00,
+  "stock_inicial": 0
+}

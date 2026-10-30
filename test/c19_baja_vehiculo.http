@@ -1,6 +1,17 @@
 # Ejecutar python seed.py antes de este archivo
 @baseUrl = http://localhost:8000
 
+### C-19: Login de administración (la baja de vehículos y clientes exige sesión)
+# Esperado: 200 OK
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
 ### C-19: Baja lógica de vehículo sin órdenes abiertas (Focus AB123CD de Laura, id 2)
 # Esperado: 204 No Content
 DELETE {{baseUrl}}/vehiculos/2

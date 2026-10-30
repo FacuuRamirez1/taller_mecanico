@@ -259,7 +259,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-03] `ej3-contratos-crud`
 
-- **Estado**: `[x]` completado (2026-10-30)
+- **Estado**: `[x]` completado (archivado 2026-10-30)
 - **Ejercicio**: **Ej. 3** · **Peso**: 10 % · **Esfuerzo**: 9 h-persona
 - **Dueño**: C (repuestos, clientes, vehículos) + D (`seed.py`, schemas de órdenes) + B (schemas de usuarios) + A (paginación y errores)
 - **Scope**:
@@ -293,7 +293,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-04] `ej4-autenticacion`
 
-- **Estado**: `[ ]` pendiente
+- **Estado**: [x] completado (2026-10-30)
 - **Ejercicio**: **Ej. 4** · **Peso**: 16 % · **Esfuerzo**: 11 h-persona
 - **Dueño**: B (A ayuda con JWT y el registro del router en `main.py`)
 - **Scope**:
@@ -320,7 +320,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-05] `ej5-autorizacion`
 
-- **Estado**: `[ ]` pendiente
+- **Estado**: [x] completado (2026-10-30)
 - **Ejercicio**: **Ej. 5** · **Peso**: 14 % · **Esfuerzo**: 9 h-persona
 - **Dueño**: B
 - **Scope**:
@@ -348,7 +348,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-06] `ej6-repositorios-uow`
 
-- **Estado**: `[ ]` pendiente
+- **Estado**: [x] completado (2026-10-30)
 - **Ejercicio**: **Ej. 6** · **Peso**: **20 %** · **Esfuerzo**: 14 h-persona
 - **Dueño**: C y D en paralelo (A entrega `repository.py` y `unit_of_work.py` en GATE 3)
 - **Scope**:
@@ -366,10 +366,10 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 - **Cubre**: `C-10` (alta + repuesto inexistente) · `C-11` (4 bujías, stock 2 → 409 sin escrituras) · `C-12` (mitad: reposición + término + movimientos + historial) · `C-13` (403 antes que 409) · `C-17` (422 del filtro de estado) · `C-18` (historial de precio + 403 de recepción)
 - **Produce**: `app/core/repository.py`, `app/core/unit_of_work.py`, `app/modules/{usuarios,clientes,repuestos,ordenes}/{repository,unit_of_work}.py`, `app/modules/{repuestos,clientes,usuarios}/{service,router}.py` (refactor), `app/modules/ordenes/{service,router}.py`, `test/c10_alta_orden.http`, `test/c11_stock_insuficiente.http`, `test/c12_reponer_terminar.http`, `test/c13_cancelar.http`, `test/c17_catalogo.http`, `test/c18_precio_historial.http`.
 - **Cierra con**:
-  - [ ] `C-10` a `C-13` en verde + `C-17`(422) + `C-18`.
-  - [ ] `grep -rn "\.commit()" app/modules/*/repository.py app/core/repository.py` → **vacío**.
-  - [ ] `grep -rn "UnitOfWork(" app/modules/*/service.py` → **vacío** (el servicio no lo construye).
-  - [ ] `C-11`: después del 409, `stock`, `movimiento_stock` e `historial_estado_orden` tienen exactamente las mismas filas que antes (contarlas).
+  - [x] `C-10` a `C-13` en verde + `C-17`(422) + `C-18`.
+  - [x] `grep -rn "\.commit()" app/modules/*/repository.py app/core/repository.py` → **vacío**.
+  - [x] `grep -rn "UnitOfWork(" app/modules/*/service.py` → **vacío** (el servicio no lo construye).
+  - [x] `C-11`: después del 409, `stock`, `movimiento_stock` e `historial_estado_orden` tienen exactamente las mismas filas que antes (contarlas).
 - **Leer antes**:
   - `knowledge-base/08_arquitectura_propuesta.md` §Patrones aplicados (tabla "Reparto de responsabilidades")
   - `knowledge-base/06_funcionalidades.md` §Épica 5 — Repositorios y Unit of Work

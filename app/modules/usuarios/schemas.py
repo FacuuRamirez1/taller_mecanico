@@ -1,11 +1,11 @@
-"""Schemas de entrada/salida del módulo `usuarios` (design §D4).
+"""Schemas de entrada/salida del módulo `usuarios` (design §D4, C-05).
 
 Separados de los modelos de tabla. Toda entrada rechaza campos no declarados;
 ninguna salida expone el hash de contraseña. Las contraseñas exigen al menos
 8 caracteres y no superan 72 bytes en UTF-8.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -44,6 +44,17 @@ class UsuarioCreate(BaseModel):
     nombre: str
     password: str
     rol: RolEnum | None = None
+
+    _validar_password = field_validator("password")(validar_password)
+
+
+class UsuarioPersonalCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str
+    nombre: str
+    password: str
+    rol: RolEnum
 
     _validar_password = field_validator("password")(validar_password)
 
@@ -100,6 +111,17 @@ class AsignacionRolCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rol: RolEnum
+    vence_en: datetime | None = None
+
+    @field_validator("vence_en")
+    @classmethod
+    def validar_vence_en(cls, v: datetime | None) -> datetime | None:
+        if v is not None:
+            if v.tzinfo is None:
+                raise ValueError("vence_en debe incluir zona horaria")
+            if v <= datetime.now(timezone.utc):
+                raise ValueError("vence_en debe ser una fecha en el futuro")
+        return v
 
 
 class AsignacionRolRead(BaseModel):
@@ -122,6 +144,15 @@ class CambioPassword(BaseModel):
 
     _validar_password_actual = field_validator("password_actual")(validar_password_max_bytes)
     _validar_password_nueva = field_validator("password_nueva")(validar_password)
+
+
+class EventoSeguridadRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    actor: str
+    accion: str
+    cuando: datetime
 
 
 class MensajeResponse(BaseModel):

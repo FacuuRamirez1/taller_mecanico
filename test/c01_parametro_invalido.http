@@ -1,6 +1,18 @@
 # Ejecutar python seed.py antes de este archivo
 @baseUrl = http://localhost:8000
 
+### C-01: Login de administración (las rutas del taller exigen sesión válida)
+# Sin sesión, FastAPI respondería 401 antes de validar el parámetro.
+# Esperado: 200 OK
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
 ### C-01: Parámetro de ruta no entero en repuestos
 # FastAPI valida el tipo del parámetro antes de invocar el handler.
 # Esperado: 422 Unprocessable Entity

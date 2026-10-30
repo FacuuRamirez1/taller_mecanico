@@ -1,6 +1,17 @@
 # Ejecutar python seed.py antes de este archivo
 @baseUrl = http://localhost:8000
 
+### C-16: Login de administración (repuestos exige sesión y ADMIN para escribir)
+# Esperado: 200 OK
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
 ### C-16: Búsqueda con intento de inyección SQL (parámetros ligados)
 # Esperado: 200 OK con 0 resultados (busca literalmente la cadena)
 # {

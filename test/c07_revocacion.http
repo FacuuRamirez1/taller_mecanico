@@ -1,0 +1,65 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-07: Login del Administrador
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-07: Alta de personal por parte del Administrador (nuevo recepcionista)
+# Esperado: 201 Created
+# @name altaPersonal
+POST {{baseUrl}}/usuarios
+Content-Type: application/json
+
+{
+  "email": "recep_c07@example.com",
+  "nombre": "Recepcionista C07",
+  "password": "PasswordProvisoria123!",
+  "rol": "RECEPCION"
+}
+
+### C-07: Login del nuevo recepcionista
+# @name loginRecep
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "recep_c07@example.com",
+  "password": "PasswordProvisoria123!"
+}
+
+### C-07: Desbloqueo mediante cambio obligatorio de contraseña
+# @name cambioPasswordRecep
+POST {{baseUrl}}/auth/cambiar-password
+Content-Type: application/json
+
+{
+  "password_actual": "PasswordProvisoria123!",
+  "password_nueva": "PasswordDefinitiva2026!"
+}
+
+### C-07: Acceso a /clientes como RECEPCION (sesión vigente)
+# Esperado: 200 OK
+GET {{baseUrl}}/clientes/1
+
+### C-07: El Administrador revoca el rol RECEPCION al recepcionista
+# Esperado: 200 OK
+# {
+#   "mensaje": "Rol RECEPCION revocado exitosamente"
+# }
+DELETE {{baseUrl}}/usuarios/{{altaPersonal.response.body.id}}/roles/RECEPCION
+Cookie: {{loginAdmin.response.headers.Set-Cookie}}
+
+### C-07: El recepcionista reintenta acceder con la MISMA cookie en la petición siguiente
+# Esperado: 403 Forbidden (el rol se revocó con la sesión abierta)
+# {
+#   "detail": "Permiso denegado"
+# }
+GET {{baseUrl}}/clientes/1
+

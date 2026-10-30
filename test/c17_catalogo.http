@@ -1,0 +1,141 @@
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-17: Catálogo de estados sin sesión
+# Todo el grupo de rutas del taller está detrás de `get_usuario_activo` (RN-06).
+# Esperado: 401 Unauthorized
+# {
+#   "detail": "No autenticado"
+# }
+# @no-cookie-jar
+GET {{baseUrl}}/estados-orden
+
+### C-17: Login de recepción
+# Esperado: 200 OK
+# @name loginRecepcion
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "recepcion@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-17: Catálogo de estados de orden (sin filtro)
+# Ordenado por `posicion`; los estados finales quedan marcados con `es_final`.
+# Esperado: 200 OK
+# [
+#   { "codigo": "PENDIENTE", "descripcion": "Pendiente de reparación", "posicion": 1, "es_final": false },
+#   { "codigo": "EN_REPARACION", "descripcion": "En reparación", "posicion": 2, "es_final": false },
+#   { "codigo": "TERMINADA", "descripcion": "Terminada", "posicion": 3, "es_final": true },
+#   { "codigo": "CANCELADA", "descripcion": "Cancelada", "posicion": 4, "es_final": true }
+# ]
+GET {{baseUrl}}/estados-orden
+
+### C-17: Listado filtrado por estado (sólo la Orden 1 del seed)
+# Esperado: 200 OK con total 1
+# {
+#   "items": [
+#     {
+#       "id": 1,
+#       "vehiculo_id": 1,
+#       "mecanico_id": null,
+#       "estado": "PENDIENTE",
+#       "falla": "Ruido en el motor",
+#       "creada_en": "...",
+#       "total": "8500.00"
+#     }
+#   ],
+#   "total": 1,
+#   "page": 1,
+#   "size": 20,
+#   "pages": 1
+# }
+GET {{baseUrl}}/ordenes?estado=PENDIENTE
+
+### C-17: Estado fuera del enum del catálogo
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": "Estado inválido: EN_ESPERA. Debe ser uno de ['CANCELADA', 'EN_REPARACION', 'PENDIENTE', 'TERMINADA']"
+# }
+GET {{baseUrl}}/ordenes?estado=EN_ESPERA
+
+### C-17: Listado sin filtro (las 2 órdenes del seed)
+# Esperado: 200 OK con total 2
+# {
+#   "items": [ { "id": 1, ... }, { "id": 2, ... } ],
+#   "total": 2,
+#   "page": 1,
+#   "size": 20,
+#   "pages": 1
+# }
+GET {{baseUrl}}/ordenes
+
+### C-17: Paginación del listado de órdenes (primera página de tamaño 1)
+# Esperado: 200 OK con total 2 y pages 2
+# {
+#   "items": [ { "id": 1, ... } ],
+#   "total": 2,
+#   "page": 1,
+#   "size": 1,
+#   "pages": 2
+# }
+GET {{baseUrl}}/ordenes?page=1&size=1
+
+### C-17: Página fuera de rango en órdenes
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": "La página 5 no existe: hay 2"
+# }
+GET {{baseUrl}}/ordenes?page=5&size=1
+
+### C-17: Tamaño de página fuera del máximo permitido
+# Esperado: 422 Unprocessable Entity
+# {
+#   "detail": [
+#     {
+#       "type": "less_than_equal",
+#       "loc": ["query", "size"],
+#       "msg": "Input should be less than or equal to 100"
+#     }
+#   ]
+# }
+GET {{baseUrl}}/ordenes?size=500
+
+### C-17: Login de la clienta para ver sus propias órdenes
+# Esperado: 200 OK
+# @name loginCliente
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "cliente@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-17: `/mis-ordenes` devuelve sólo las órdenes de los vehículos de la clienta
+# Laura es dueña del Corolla (Orden 1) y del Focus (sin órdenes): total 1.
+# Esperado: 200 OK
+# {
+#   "items": [
+#     {
+#       "id": 1,
+#       "vehiculo_id": 1,
+#       "estado": "PENDIENTE",
+#       "falla": "Ruido en el motor",
+#       "total": "8500.00"
+#     }
+#   ],
+#   "total": 1,
+#   "page": 1,
+#   "size": 20,
+#   "pages": 1
+# }
+GET {{baseUrl}}/mis-ordenes
+
+### C-17: La clienta no puede usar el listado global de órdenes (es de personal)
+# Esperado: 403 Forbidden
+# {
+#   "detail": "Permiso denegado"
+# }
+GET {{baseUrl}}/ordenes
