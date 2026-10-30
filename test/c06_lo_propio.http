@@ -1,0 +1,107 @@
+# ============================================================================
+# C-06: 401 contra 403, y lo propio (Ej. 5 y Ej. 6, US-021, US-025)
+# ============================================================================
+# Demuestra:
+# 1) Sin sesión activa (sin cookie de token) -> 401 Unauthorized.
+# 2) Con sesión pero sin el rol requerido (ej. cliente intentando listar eventos de admin) -> 403 Forbidden.
+# 3) El cliente autenticado puede ver el detalle de SU orden (Orden 1, Laura Gómez) -> 200 OK.
+# 4) El cliente autenticado NO puede ver el detalle de una orden AJENA (Orden 2, Jorge Pérez) -> 403 Forbidden.
+# 5) El cliente ve sus propios vehículos en /mis-vehiculos y sus órdenes en /mis-ordenes -> 200 OK.
+# ============================================================================
+
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-06: Acceso a orden sin sesión iniciada (sin cookie)
+# Esperado: 401 Unauthorized
+# {
+#   "detail": "No autenticado"
+# }
+# @no-cookie-jar
+GET {{baseUrl}}/ordenes/1
+
+### C-06: Login de Cliente (Laura Gómez, dueña del vehículo de la Orden 1)
+# Esperado: 200 OK
+# @name loginCliente
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "cliente@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-06: Cliente intenta acceder a recurso administrativo (/eventos) sin tener rol ADMIN
+# Esperado: 403 Forbidden
+# {
+#   "detail": "Permiso denegado: rol insuficiente"
+# }
+GET {{baseUrl}}/eventos
+
+### C-06: Cliente consulta SU propia orden (Orden 1, Corolla AC456EF)
+# Esperado: 200 OK
+# {
+#   "id": 1,
+#   "vehiculo_id": 1,
+#   "mecanico_id": null,
+#   "estado": "PENDIENTE",
+#   "falla": "Ruido en el motor",
+#   "patente": "AC456EF",
+#   "cliente": "Laura Gómez",
+#   "items": [
+#     {
+#       "repuesto_id": 1,
+#       "cantidad": 1,
+#       "codigo": "FIL-001",
+#       "descripcion": "Filtro de aceite",
+#       "subtotal": "8500.00"
+#     }
+#   ]
+# }
+GET {{baseUrl}}/ordenes/1
+
+### C-06: Cliente intenta consultar una orden AJENA (Orden 2, Jorge Pérez)
+# Esperado: 403 Forbidden
+# {
+#   "detail": "Permiso denegado: no tiene acceso a esta orden"
+# }
+GET {{baseUrl}}/ordenes/2
+
+### C-06: Cliente consulta sus órdenes propias (/mis-ordenes)
+# Esperado: 200 OK con página conteniendo sólo la Orden 1
+# {
+#   "total": 1,
+#   "page": 1,
+#   "size": 10,
+#   "pages": 1,
+#   "items": [ { "id": 1, "estado": "PENDIENTE", "falla": "Ruido en el motor" } ]
+# }
+GET {{baseUrl}}/mis-ordenes
+
+### C-06: Cliente consulta sus vehículos propios (/mis-vehiculos)
+# Esperado: 200 OK con los 2 vehículos de Laura (Corolla AC456EF y Focus AB123CD)
+# [
+#   { "patente": "AC456EF", "marca": "Toyota", "modelo": "Corolla", "anio": 2020 },
+#   { "patente": "AB123CD", "marca": "Ford", "modelo": "Focus", "anio": 2018 }
+# ]
+GET {{baseUrl}}/mis-vehiculos
+
+### C-06: Login de Mecánico (personal del taller)
+# Esperado: 200 OK
+# @name loginMecanico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "mecanico@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-06: El personal del taller (Mecánico/Admin/Recepción) puede ver cualquier orden
+# Esperado: 200 OK tanto para la Orden 1 como para la Orden 2
+GET {{baseUrl}}/ordenes/1
+
+###
+# Esperado: 200 OK
+GET {{baseUrl}}/ordenes/2
+

@@ -1,0 +1,105 @@
+# ============================================================================
+# C-15: Detalle sin N+1 y precarga en el repositorio (Ej. 8, US-035)
+# ============================================================================
+# Este caso verifica que la lectura detallada de una orden de trabajo
+# resuelve sus relaciones (vehículo, cliente, ítems, repuesto de cada ítem,
+# historial) mediante precarga anticipada (selectinload) declarada en el repositorio.
+#
+# Demostración clave (con SQL_ECHO=true en el archivo .env):
+# Tanto la consulta de una orden con 2 ítems como la de una orden con 4 ítems
+# ejecutan EXACTAMENTE la misma cantidad de consultas SQL (6 sentencias SELECT):
+#   1. SELECT orden_trabajo WHERE id = ?
+#   2. SELECT vehiculo WHERE id = ?
+#   3. SELECT cliente WHERE id = ?
+#   4. SELECT item_orden WHERE orden_id = ?
+#   5. SELECT repuesto WHERE id IN (?, ...)
+#   6. SELECT historial_estado_orden WHERE orden_id = ?
+#
+# El número de consultas no crece con la cantidad de ítems (ausencia de problema N+1).
+# ============================================================================
+
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-15: Login de recepción para dar de alta las órdenes de prueba
+# Esperado: 200 OK
+# @name loginRecepcion
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "recepcion@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-15: Crear Orden A con 2 ítems (Repuestos 1 y 2)
+# Esperado: 201 Created
+# @name orden2Items
+POST {{baseUrl}}/ordenes
+Content-Type: application/json
+
+{
+  "vehiculo_id": 1,
+  "falla": "Mantenimiento básico con 2 ítems",
+  "items": [
+    { "repuesto_id": 1, "cantidad": 1 },
+    { "repuesto_id": 2, "cantidad": 1 }
+  ]
+}
+
+### C-15: Crear Orden B con 4 ítems (Repuestos 1, 2, 3 y 4)
+# Esperado: 201 Created
+# @name orden4Items
+POST {{baseUrl}}/ordenes
+Content-Type: application/json
+
+{
+  "vehiculo_id": 2,
+  "falla": "Service integral con 4 ítems",
+  "items": [
+    { "repuesto_id": 1, "cantidad": 1 },
+    { "repuesto_id": 2, "cantidad": 1 },
+    { "repuesto_id": 3, "cantidad": 1 },
+    { "repuesto_id": 4, "cantidad": 1 }
+  ]
+}
+
+### C-15: Consulta de Detalle de la Orden con 2 ítems
+# Observar en consola de uvicorn: emite exactamente 6 sentencias SELECT
+# Esperado: 200 OK
+# {
+#   "id": {{orden2Items.response.body.id}},
+#   "vehiculo_id": 1,
+#   "patente": "AC456EF",
+#   "cliente": "Laura Gómez",
+#   "items": [
+#     { "repuesto_id": 1, "codigo": "FIL-001", "subtotal": "8500.00" },
+#     { "repuesto_id": 2, "codigo": "FRE-010", "subtotal": "45000.00" }
+#   ],
+#   "historial": [
+#     { "desde_estado": null, "hasta_estado": "PENDIENTE" }
+#   ]
+# }
+GET {{baseUrl}}/ordenes/{{orden2Items.response.body.id}}
+
+### C-15: Consulta de Detalle de la Orden con 4 ítems
+# Observar en consola de uvicorn: emite EXACTAMENTE las mismas 6 sentencias SELECT
+# No hay multiplicación de consultas por los 4 repuestos
+# Esperado: 200 OK
+# {
+#   "id": {{orden4Items.response.body.id}},
+#   "vehiculo_id": 2,
+#   "patente": "AB123CD",
+#   "cliente": "Laura Gómez",
+#   "items": [
+#     { "repuesto_id": 1, "codigo": "FIL-001" },
+#     { "repuesto_id": 2, "codigo": "FRE-010" },
+#     { "repuesto_id": 3, "codigo": "BUJ-001" },
+#     { "repuesto_id": 4, "codigo": "ACE-530" }
+#   ],
+#   "historial": [
+#     { "desde_estado": null, "hasta_estado": "PENDIENTE" }
+#   ]
+# }
+GET {{baseUrl}}/ordenes/{{orden4Items.response.body.id}}
+

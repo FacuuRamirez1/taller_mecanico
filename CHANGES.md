@@ -383,7 +383,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-07] `ej7-integridad`
 
-- **Estado**: `[ ]` pendiente
+- **Estado**: [x] completado (2026-10-30)
 - **Ejercicio**: **Ej. 7** · **Peso**: 10 % · **Esfuerzo**: 5 h-persona
 - **Dueño**: A (trigger/evidencia) + B (`intento_acceso`)
 - **Scope**:
@@ -398,10 +398,10 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 - **Cubre**: `C-14` (completo) · `C-05` (resto: los cinco fallos quedan registrados pese a los 401)
 - **Produce**: `test/solo_agregado.sql`, `test/c14_solo_agregado.http`, `app/modules/usuarios/service.py` (ajuste del registro de intentos + comentario), evidencia `C-14` en el README (texto/captura).
 - **Cierra con**:
-  - [ ] Los **6** `UPDATE`/`DELETE` rechazados por el trigger, ejecutados a mano en `psql`.
-  - [ ] `INSERT` de una orden con estado inexistente → error de **FK**, no del trigger.
-  - [ ] `alembic downgrade base` borra función y trigger; `upgrade head` los vuelve a crear.
-  - [ ] Los 5 fallos de `C-05` están en `intento_acceso` **y siguen ahí** después de los 401.
+  - [x] Los **6** `UPDATE`/`DELETE` rechazados por el trigger, ejecutados a mano en `psql`.
+  - [x] `INSERT` de una orden con estado inexistente → error de **FK**, no del trigger.
+  - [x] `alembic downgrade base` borra función y trigger; `upgrade head` los vuelve a crear.
+  - [x] Los 5 fallos de `C-05` están en `intento_acceso` **y siguen ahí** después de los 401.
 - **Leer antes**:
   - `knowledge-base/05_reglas_de_negocio.md` §RN-15 (sólo agregado por disparador)
   - `knowledge-base/07_flujos_principales.md` §Flujo 1 — Login (paso 7: `intento_acceso`) y §Flujo 5 — Terminar una orden
@@ -411,7 +411,7 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 
 ### [C-08] `ej8-n-plus-1-asincronia`
 
-- **Estado**: `[ ]` pendiente
+- **Estado**: [x] completado (2026-10-30)
 - **Ejercicio**: **Ej. 8** · **Peso**: 8 % · **Esfuerzo**: 9 h-persona
 - **Dueño**: A y D (D es dueño de `README.md` y de `ordenes/`)
 - **Scope**:
@@ -427,10 +427,10 @@ Otros P1 que van a morder si nadie los mira: `Q-14` (nombres de los campos de ca
 - **Cubre**: `C-15` (consultas fijas) · `C-12` (resto: el aviso sale en el registro **después** de la respuesta)
 - **Produce**: `*/repository.py` (precarga en los métodos de detalle), `app/modules/ordenes/{service,router}.py` (BackgroundTasks), `README.md`, `test/c15_detalle_sin_n_plus_1.http`, evidencias `C-14`/`C-15`.
 - **Cierra con**:
-  - [ ] `C-15`: con `SQL_ECHO=true`, el detalle de una orden de 2 ítems y de una de 4 emite **la misma cantidad** de consultas (contarlas en la salida).
-  - [ ] `C-12`: el mensaje del aviso aparece **después** de la respuesta (se ve en la consola) y **no** aparece si la terminación falló.
-  - [ ] `README.md` permite levantar el proyecto desde cero en una máquina que nunca lo vio.
-  - [ ] **Los 19 casos pasan** en una corrida limpia; `.env` no está en el repo; `alembic upgrade head` sobre base vacía vuelve a funcionar.
+  - [x] `C-15`: con `SQL_ECHO=true`, el detalle de una orden de 2 ítems y de una de 4 emite **la misma cantidad** de consultas (contarlas en la salida).
+  - [x] `C-12`: el mensaje del aviso aparece **después** de la respuesta (se ve en la consola) y **no** aparece si la terminación falló.
+  - [x] `README.md` permite levantar el proyecto desde cero en una máquina que nunca lo vio.
+  - [x] **Los 19 casos pasan** en una corrida limpia; `.env` no está en el repo; `alembic upgrade head` sobre base vacía vuelve a funcionar.
 - **Leer antes**:
   - `knowledge-base/06_funcionalidades.md` §Épica 7 — Lecturas sin N+1 y asincronía
   - `knowledge-base/07_flujos_principales.md` §Flujo 5 — Terminar una orden (paso 4: el aviso)

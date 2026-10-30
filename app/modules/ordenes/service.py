@@ -4,9 +4,25 @@ Arquitectura: Router -> Service -> UoW -> Repository -> Model.
 El servicio opera sobre `OrdenesUnitOfWork` asegurando transaccionalidad atómica.
 """
 
+import asyncio
 from decimal import Decimal
+import logging
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
+
+logger = logging.getLogger("taller_mecanico.ordenes")
+
+
+async def notificar_terminacion_orden(orden_id: int, cliente_nombre: str | None) -> None:
+    """Aviso al cliente en segundo plano al terminar la orden (US-036, RN-13).
+    
+    Se ejecuta después de enviar la respuesta y sólo si la transacción se confirmó.
+    """
+    await asyncio.sleep(0.5)
+    destinatario = cliente_nombre or "cliente"
+    logger.info(
+        f"[AVISO_SEGUNDO_PLANO] Orden #{orden_id} TERMINADA: Notificación enviada exitosamente a {destinatario}."
+    )
 
 from app.core.paginacion import Pagina
 from app.modules.ordenes import schemas
@@ -226,6 +242,7 @@ class OrdenService:
         self,
         orden_id: int,
         usuario: Usuario,
+        background_tasks: BackgroundTasks | None = None,
     ) -> OrdenTrabajo:
         """Transición EN_REPARACION -> TERMINADA (RN-11, RN-13).
 
@@ -296,6 +313,15 @@ class OrdenService:
                 usuario_id=usuario.id,  # type: ignore[arg-type]
             )
             await self.uow.historial.add(historial)
+
+        # Aviso en segundo plano (US-036, C-12): agendado después de confirmar la transacción
+        if background_tasks is not None:
+            cliente_nombre = (
+                orden.vehiculo.cliente.nombre
+                if orden.vehiculo is not None and orden.vehiculo.cliente is not None
+                else None
+            )
+            background_tasks.add_task(notificar_terminacion_orden, orden.id, cliente_nombre)
 
         return orden
 

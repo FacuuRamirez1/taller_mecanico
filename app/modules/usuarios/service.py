@@ -55,7 +55,11 @@ class UsuarioService:
             await verify_password(datos.password, app_hash_ficticio)
             password_valida = False
 
-        # 3. Anotar intento_acceso en sesión y transacción propias (se confirma siempre)
+        # 3. Anotar intento_acceso en sesión y transacción propias (se confirma siempre).
+        # Checklist Ej. 7 (US-034): Es la ÚNICA escritura que no comparte la transacción
+        # de su petición.
+        # Costo: deja filas en intento_acceso aunque la petición falle, sea rechazada
+        # por credenciales inválidas (401) o por rate limit (429) (RN-08).
         async with self.sessionmaker() as ses_intento:
             intento = IntentoAcceso(
                 email=datos.email,

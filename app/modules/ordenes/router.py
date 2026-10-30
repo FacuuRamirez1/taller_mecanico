@@ -6,7 +6,7 @@ Maneja los permisos declarados en la matriz RBAC de la consigna.
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from app.core.dependencies import UsuarioActivoDep, requiere_rol
 from app.core.paginacion import Pagina, PaginacionDep
@@ -109,8 +109,11 @@ async def terminar_orden(
     orden_id: int,
     usuario: Annotated[Usuario, Depends(requiere_rol("ADMIN", "MECANICO"))],
     service: ServiceDep,
+    background_tasks: BackgroundTasks,
 ) -> schemas.OrdenRead:
-    return await service.terminar(orden_id=orden_id, usuario=usuario)
+    return await service.terminar(
+        orden_id=orden_id, usuario=usuario, background_tasks=background_tasks
+    )
 
 
 @ordenes_router.post(

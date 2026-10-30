@@ -1,0 +1,61 @@
+# ============================================================================
+# C-14: Integridad y sólo agregado (Ej. 7, US-033)
+# ============================================================================
+# Este caso demuestra que los historiales y movimientos son estrictamente de
+# sólo agregado. La prueba principal de disparadores se ejecuta en psql con:
+#   psql -U postgres -d taller_mecanico -f test/solo_agregado.sql
+#
+# A nivel API REST:
+# 1) No existen rutas de UPDATE o DELETE sobre historiales ni movimientos (405 Method Not Allowed).
+# 2) Las consultas de historial y movimientos devuelven la secuencia inmutable.
+# 3) Ningún usuario ni admin puede alterar filas históricas por API.
+# ============================================================================
+
+# Ejecutar python seed.py antes de este archivo
+@baseUrl = http://localhost:8000
+
+### C-14: Login de Administrador
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "demo-taller-2026"
+}
+
+### C-14: Intentar eliminar movimientos de stock por API (Ruta no permitida)
+# Esperado: 405 Method Not Allowed
+DELETE {{baseUrl}}/repuestos/1/movimientos
+
+### C-14: Intentar actualizar movimientos de stock por API (Ruta no permitida)
+# Esperado: 405 Method Not Allowed
+PATCH {{baseUrl}}/repuestos/1/movimientos
+Content-Type: application/json
+
+{
+  "cantidad": 999
+}
+
+### C-14: Intentar eliminar historial de precios por API (Ruta no permitida)
+# Esperado: 405 Method Not Allowed
+DELETE {{baseUrl}}/repuestos/1/precios
+
+### C-14: Consulta de catálogo de estados inmutable
+# Esperado: 200 OK con los 4 estados
+# [
+#   { "codigo": "PENDIENTE", "descripcion": "Pendiente de reparación", "posicion": 1, "es_final": false },
+#   { "codigo": "EN_REPARACION", "descripcion": "En reparación", "posicion": 2, "es_final": false },
+#   { "codigo": "TERMINADA", "descripcion": "Terminada", "posicion": 3, "es_final": true },
+#   { "codigo": "CANCELADA", "descripcion": "Cancelada", "posicion": 4, "es_final": true }
+# ]
+GET {{baseUrl}}/estados-orden
+
+### C-14: Consulta de movimientos de stock (inmutables y orden cronológico)
+# Esperado: 200 OK
+GET {{baseUrl}}/repuestos/1/movimientos
+
+### C-14: Consulta de historial de precios (inmutable)
+# Esperado: 200 OK
+GET {{baseUrl}}/repuestos/1/precios
+
